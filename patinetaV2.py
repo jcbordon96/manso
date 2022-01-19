@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 
+from math import sqrt, atan2
+import math
 import rospy
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Int8
 from std_msgs.msg import Float32
 from std_msgs.msg import Bool
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import Point, Pose2D
 import time 
+import tf
 
 class patineta:
     def __init__(self):
@@ -29,12 +32,13 @@ class patineta:
         self.execute = False
         self.DistanceToLow = 0.0
         self.DistanceDown = 0.0
-        self.encoder = 0.0 
+        self.point = Point()
+        self.pose = Pose2D()
         self.ok_goal = False
         self.stop_flag = False
         self.distance_to_low = 0.05
         self.distance_down = 0.15
-        self.rate = rospy.Rate(1)
+
 
         self.CommandArduino = False
         self.count = 0
@@ -60,31 +64,37 @@ class patineta:
             #if (len(self.elements) > 0 or self.wait == True):
             if (len(self.elements) > 0):
                 #if (self.wait == False):
-                self.element = self.elements[0][0]
-                self.zone = self.elements[0][1]
+                self.point.x = self.elements[0][0]
+                self.point.y = self.elements[0][1]
+                self.zone = self.elements[0][2]
                 if (self.zone == 1):
                     self.zoneGoal = 25
-                if (self.zone == 2):
+                elif (self.zone == 2):
                     self.zoneGoal = 89
-                if (self.zone == 3):
+                elif (self.zone == 3):
                     self.zoneGoal = 151
-                if (self.element > self.goal):
-                    self.distance = self.element - self.goal
-                    print(self.element)
-                    if (self.distance < self.distance_down):
+                self.distance = sqrt((self.point.x - self.pose.x) **2 + (self.point.y - self.pose.y) **2)
+                self.theta = atan2((self.point.y - self.pose.y), (self.point.x - self.pose.x))
+                if  not self.execute:
+                    if (abs(self.theta - self.pose.theta) < 1.57):
+                        print(self.distance)
+                        if (self.distance < self.distance_down):
+                            self.elements.pop(0)
+                            print("punto filtrado")
+                        #if (self.execute == False):
+                        else:
+                            # self.goal = self.element
+                            self.pubZoneGoal.publish(self.zone)
+                            print (self.zone)
+                            #self.elements.pop(0)
+                            self.execute = True
+                            print("pase el punto a goal") 
+                    else:
                         self.elements.pop(0)
                         print("punto filtrado")
-                    #if (self.execute == False):
-                    if (self.distance > self.distance_down):
-                        self.goal = self.element
-                        self.pubZoneGoal.publish(self.zone)
-                        print (self.zone)
-                        #self.elements.pop(0)
-                        self.execute = True
-                        print("pase el punto a goal") 
                 #-------------------------- execute function --------------------------
-                if (self.execute == True):
-                    self.DistanceToLow = self.goal - self.encoder
+                else:
+                    self.DistanceToLow = sqrt((self.point.x - self.pose.x) **2 + (self.point.y - self.pose.y) **2)
                     self.DistanceToZone = self.zoneGoal - self.armPose
 
                     if (self.okZoneGoal == False or self.ok_goal == False):
@@ -123,16 +133,30 @@ class patineta:
                         if(len(self.elements) > 0):
                             self.elements.pop(0)
                         print("end process")
+                    
+                    if (abs(self.theta - self.pose.theta) > 1.57):
+                        print("goalZone: {}/ armPose: {} /distanceToZone: {}/ Nos pasamos segun angulo".format(self.zoneGoal, self.armPose, self.distanceToZone))
+                        self.ok_goal = False
+                        self.okZoneGoal = False
+                        self.execute = False
+                        self.wait = False
+                        if(len(self.elements) > 0):
+                            self.elements.pop(0)
+
 
                 #else:
                 #----------------------------------------------------------------------------
- 
+
     def pose_callback(self, msg):
-        self.encoder = msg.pose.pose.position.x
+        self.pose.x = msg.pose.pose.position.x
+        self.pose.y = msg.pose.pose.position.y
+        (r, p, y) = tf.transformations.euler_from_quaternion([msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w])
+        self.pose.theta = y
+        
     def armPose_callback(self, msg):
         self.armPose = msg.data 
     def points_callback(self, msg):
-        self.elements.append([msg.x, msg.y])
+        self.elements.append([msg.x, msg.y, msg.z])
         rospy.loginfo(self.elements)
 
 if __name__ == '__main__':

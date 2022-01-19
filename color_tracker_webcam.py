@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
-from ast import Raise
 import rospy
 import cv2
 import color_tracker
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point
+import tf
+import math
 
 
 class WeedTracker:
@@ -36,7 +37,10 @@ class WeedTracker:
                         break
 
     def odom_callback(self, msg):
-        self.pose.x = msg.pose.pose.position.x + 0.88
+        (r, p, y) = tf.transformations.euler_from_quaternion([msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w])
+
+        self.pose.x = msg.pose.pose.position.x + 0.88 * math.cos(y)
+        self.pose.y = msg.pose.pose.position.x + 0.88 * math.sin(y)
 
     def updateObjects(self):
         global objects
@@ -57,13 +61,13 @@ class WeedTracker:
                 
                 if(pointX > 150 and pointX < 263 ):
                     print("1")
-                    self.pose.y = 1
+                    self.pose.z = 1
                 elif(pointX > 263 and pointX < 375 ):
                     print("2")
-                    self.pose.y = 2
+                    self.pose.z = 2
                 elif(pointX > 375 and pointX < 490 ):
                     print("3")
-                    self.pose.y = 3
+                    self.pose.z = 3
                 self.pub_points.publish(self.pose)
             #cv2.circle(t.debug_frame, t.tracked_objects[i].last_point, 5, [255,255,255], 3)  
         
