@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from ublox_gps import UbloxGps
 import serial
 import rospy
