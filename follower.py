@@ -18,7 +18,7 @@ class Follower:
         rospy.Subscriber('follower_request', Bool, self.follower_request_callback)
         flagStop = False
         # Capturing video through webcam
-        webcam = cv2.VideoCapture(0)
+        webcam = cv2.VideoCapture("/dev/FOLLOWER")
         webcam.set(3, 640)  # width=1920
         webcam.set(4, 480) 
             # Start a while loop

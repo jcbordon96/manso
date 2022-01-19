@@ -24,7 +24,7 @@ class WeedTracker:
         while True:
             if retry:
                 try:
-                    with color_tracker.WebCamera() as cam:
+                    with color_tracker.WebCamera(video_src="/dev/TRACKER") as cam:
                         # Define your custom Lower and Upper HSV values
                         retry = False
                         tracker.track(cam, [30,20,20], [90,255,255], max_skipped_frames=30, min_contour_area=500) 
