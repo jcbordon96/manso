@@ -32,7 +32,7 @@ class Run():
                 # print(coords.lon, coords.lat)
             # except (ValueError, IOError) as err:
             #     print(err)
-            except KeyboardInterrupt:
+            except:
                 print("Some")
                 break
 
