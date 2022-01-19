@@ -35,6 +35,7 @@ class Run():
                 # except (ValueError, IOError) as err:
                 #     print(err)
                 except KeyboardInterrupt:
+                    print("Some")
                     break
 
         finally:
