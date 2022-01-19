@@ -19,7 +19,7 @@ class Run():
         self.time_pub = rospy.Publisher("gnss_time", String, queue_size=50)
         try:
             print("Listenting for UBX Messages.")
-            while True:
+            while not rospy.is_shutdown():
                 try:
                     coords = gps.geo_coords()
                     time.data = str(coords.year).zfill(2)+str(coords.month).zfill(2)+str(coords.day).zfill(2)
@@ -41,7 +41,9 @@ class Run():
 
 
 if __name__ == '__main__':
-    rospy.init_node('GNSS')
-    
-    Run()
-    rospy.spin()
+    try:
+        rospy.init_node('GNSS')
+        Run()
+        rospy.spin()
+    except rospy.ROSInterruptException:
+        rospy.loginfo("Chau")
