@@ -32,8 +32,8 @@ class Run():
 
                     print(str(coords.year).zfill(2)+str(coords.month).zfill(2)+str(coords.day).zfill(2)+"_"+str(coords.hour).zfill(2)+str(coords.min).zfill(2)+str(coords.sec).zfill(2)+"_"+str(round(coords.lon,7))+"_"+str(round(coords.lat,7))+"_"+"x")
                     # print(coords.lon, coords.lat)
-                except (ValueError, IOError) as err:
-                    print(err)
+                # except (ValueError, IOError) as err:
+                #     print(err)
                 except KeyboardInterrupt:
                     break
 
