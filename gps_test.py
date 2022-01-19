@@ -25,8 +25,7 @@ class Run():
                     gnss.header.stamp = rospy.Time.now()
                     gnss.latitude = round(coords.lat,7)
                     gnss.longitude = round(coords.lon,7)
-                    print(coords)
-                    # gnss.altitude = coords.alt
+                    gnss.altitude = coords.height
                     self.gnss_pub.publish(gnss)
                     time.data = str(coords.year).zfill(2)+str(coords.month).zfill(2)+str(coords.day).zfill(2)+"_"+str(coords.hour).zfill(2)+str(coords.min).zfill(2)+str(coords.sec).zfill(2)
                     self.time_pub.publish(time)
