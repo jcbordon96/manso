@@ -6,7 +6,7 @@ from std_msgs.msg import Time, String
 # Can also use SPI here - import spidev
 # I2C is not supported
 
-port = serial.Serial('/dev/ttyACM0', baudrate=9600, timeout=1)
+port = serial.Serial('/dev/GPS', baudrate=9600, timeout=1)
 gps = UbloxGps(port)
 gnss = NavSatFix()
 gnss.header.frame_id = "base_link"
