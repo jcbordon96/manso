@@ -77,9 +77,12 @@ class WeedTracker:
             self.weed = "N"
         # print("There is a plant :", self.weed)
         if self.take_pic == True:
-            string = "resources/" + self.time + "_" + str(self.gnss.latitude) + "_" + str(self.gnss.longitude) + "_" + self.weed + ".png"
-            print(string)
-            print(cv2.imwrite(string, t.frame))
+            string_clear = "resources/clear/" + self.time + "_" + str(self.gnss.latitude) + "_" + str(self.gnss.longitude) + "_C_" + self.weed + ".png"
+            print(string_clear)
+            print(cv2.imwrite(string_clear, t.frame))
+            string_debug = "resources/debug/" + self.time + "_" + str(self.gnss.latitude) + "_" + str(self.gnss.longitude) + "_D_" + self.weed + ".png"
+            print(string_clear)
+            print(cv2.imwrite(string_debug, t.debug_frame))
             self.last_pose = self.pose
             self.take_pic = False
         distance = math.sqrt((self.pose.x - self.last_pose.x) **2 + (self.pose.y - self.last_pose.y) **2)
@@ -109,11 +112,11 @@ class WeedTracker:
             #cv2.circle(t.debug_frame, t.tracked_objects[i].last_point, 5, [255,255,255], 3)  
         
         res = cv2.resize(t.debug_frame, (640,480))
-        # cv2.rectangle(res, (150,0), (150,480),[255,0,255], 3)
-        # cv2.rectangle(res, (490,0), (490,480),[255,0,255], 3)
-        # cv2.rectangle(res, (263,0), (263,480),[0,255,0], 3)
-        # cv2.rectangle(res, (0,240), (640,240),[0,255,0], 3)
-        # cv2.rectangle(res, (375,0), (375,480),[0,255,0], 3)
+        cv2.rectangle(res, (150,0), (150,480),[255,0,255], 3)
+        cv2.rectangle(res, (490,0), (490,480),[255,0,255], 3)
+        cv2.rectangle(res, (263,0), (263,480),[0,255,0], 3)
+        cv2.rectangle(res, (0,240), (640,240),[0,255,0], 3)
+        cv2.rectangle(res, (375,0), (375,480),[0,255,0], 3)
         cv2.imshow("debug", res)
         # cv2.waitKey(1)
         if cv2.waitKey(10) & 0xFF == ord('q'):
