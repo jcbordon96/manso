@@ -85,6 +85,7 @@ class WeedTracker:
             print(string_debug)
             print(cv2.imwrite(string_debug, t.debug_frame))
             self.last_pose = self.pose
+            print(self.last_pose)
             self.take_pic = False
         if (self.pose.x - self.last_pose.x) != 0:
             print((self.pose.x - self.last_pose.x))
