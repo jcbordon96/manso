@@ -58,11 +58,6 @@ class WeedTracker:
         self.point.y = msg.pose.pose.position.y + 0.88 * math.sin(y)
         self.pose.x = msg.pose.pose.position.x 
         self.pose.y = msg.pose.pose.position.y 
-        print("Actual")
-        print(self.pose)
-        print("last")
-        print(self.last_pose)
-        print("----------")
     
     def gnss_callback(self, msg):
         self.gnss = msg
@@ -91,12 +86,7 @@ class WeedTracker:
             print(cv2.imwrite(string_debug, t.debug_frame))
             self.last_pose.x = self.pose.x
             self.last_pose.y = self.pose.y
-            print(self.last_pose)
             self.take_pic = False
-        if (self.pose.x - self.last_pose.x) != 0:
-            print((self.pose.x - self.last_pose.x))
-        if self.distance != math.sqrt((self.pose.x - self.last_pose.x) **2 + (self.pose.y - self.last_pose.y) **2):
-            self.distance = math.sqrt((self.pose.x - self.last_pose.x) **2 + (self.pose.y - self.last_pose.y) **2)
         if self.distance > self.distance_to_take_pic:
             self.take_pic = True
             print("Voy a sacar una foto")
