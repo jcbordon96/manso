@@ -54,9 +54,9 @@ class WeedTracker:
         (r, p, y) = tf.transformations.euler_from_quaternion([msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w])
 
         self.point.x = msg.pose.pose.position.x + 0.88 * math.cos(y)
-        self.point.y = msg.pose.pose.position.x + 0.88 * math.sin(y)
+        self.point.y = msg.pose.pose.position.y + 0.88 * math.sin(y)
         self.pose.x = msg.pose.pose.position.x 
-        self.pose.y = msg.pose.pose.position.x 
+        self.pose.y = msg.pose.pose.position.y 
     
     def gnss_callback(self, msg):
         self.gnss = msg
@@ -86,6 +86,7 @@ class WeedTracker:
             self.last_pose = self.pose
             self.take_pic = False
         distance = math.sqrt((self.pose.x - self.last_pose.x) **2 + (self.pose.y - self.last_pose.y) **2)
+        print(distance)
         if distance > self.distance_to_take_pic:
             self.take_pic = True
 
