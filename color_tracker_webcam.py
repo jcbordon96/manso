@@ -79,7 +79,7 @@ class WeedTracker:
         if self.take_pic == True:
             string = "./resources/" + self.time + "_" + str(self.gnss.latitude) + "_" + str(self.gnss.longitude) + "_" + self.weed + ".png"
             print(string)
-            cv2.imwrite(string, t.frame)
+            print(cv2.imwrite(string, t.frame))
             self.last_pose = self.pose
             self.take_pic = False
         distance = math.sqrt((self.pose.x - self.last_pose.x) **2 + (self.pose.y - self.last_pose.y) **2)
