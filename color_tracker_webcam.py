@@ -81,7 +81,7 @@ class WeedTracker:
             print(string_clear)
             print(cv2.imwrite(string_clear, t.frame))
             string_debug = "resources/debug/" + self.time + "_" + str(self.gnss.latitude) + "_" + str(self.gnss.longitude) + "_D_" + self.weed + ".png"
-            print(string_clear)
+            print(string_debug)
             print(cv2.imwrite(string_debug, t.debug_frame))
             self.last_pose = self.pose
             self.take_pic = False
