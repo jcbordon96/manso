@@ -58,6 +58,11 @@ class WeedTracker:
         self.point.y = msg.pose.pose.position.y + 0.88 * math.sin(y)
         self.pose.x = msg.pose.pose.position.x 
         self.pose.y = msg.pose.pose.position.y 
+        print("Actual")
+        print(self.pose)
+        print("last")
+        print(self.last_pose)
+        print("----------")
     
     def gnss_callback(self, msg):
         self.gnss = msg
