@@ -75,16 +75,17 @@ class WeedTracker:
             self.weed = "Y"
         else:
             self.weed = "N"
-        print("There is a plant :", self.weed)
+        # print("There is a plant :", self.weed)
         if self.take_pic == True:
             string = "./resources/" + self.time + "_" + str(self.gnss.latitude) + "_" + str(self.gnss.longitude) + "_" + self.weed + ".png"
+            print(string)
             cv2.imwrite(string, t.frame)
             self.last_pose = self.pose
             self.take_pic = False
         distance = math.sqrt((self.pose.x - self.last_pose.x) **2 + (self.pose.y - self.last_pose.y) **2)
         if distance > self.distance_to_take_pic:
             self.take_pic = True
-            
+
         for i in range(len(t.tracked_objects)):
             
             if(objects < t.tracked_objects[i]._id):
