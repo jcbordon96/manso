@@ -1,24 +1,36 @@
 #!/usr/bin/env python3
 
+from dis import dis
+from turtle import distance
 import rospy
 import cv2
 import color_tracker
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point
+from sensor_msgs.msg import NavSatFix
+from std_msgs.msg import String
 import tf
 import math
 
 
 class WeedTracker:
     pose = Point()
+    point = Point()
+    last_pose = Point()
     global objects
     objects = -1
     close = False
     distance_to_take_pic = 0.35
-    weed = False
+    weed = "X"
+    gnss = NavSatFix()
+    time = ""
+    take_pic = True
     def __init__(self):
         retry = True
         rospy.Subscriber('odom', Odometry, self.odom_callback)
+        rospy.Subscriber('gnss', NavSatFix, self.gnss_callback)
+        rospy.Subscriber('gnss_time', String, self.gnss_callback)
+
         self.pub_points = rospy.Publisher("weed_points", Point, queue_size=10)
         rospy.loginfo("Iniciado")
         tracker = color_tracker.ColorTracker(max_nb_of_objects=15, max_nb_of_points=20, debug=True)
@@ -41,8 +53,16 @@ class WeedTracker:
     def odom_callback(self, msg):
         (r, p, y) = tf.transformations.euler_from_quaternion([msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w])
 
-        self.pose.x = msg.pose.pose.position.x + 0.88 * math.cos(y)
-        self.pose.y = msg.pose.pose.position.x + 0.88 * math.sin(y)
+        self.point.x = msg.pose.pose.position.x + 0.88 * math.cos(y)
+        self.point.y = msg.pose.pose.position.x + 0.88 * math.sin(y)
+        self.pose.x = msg.pose.pose.position.x 
+        self.pose.y = msg.pose.pose.position.x 
+    
+    def gnss_callback(self, msg):
+        self.gnss = msg
+
+    def gnss_callback(self, msg):
+        self.time = msg.data
 
     def updateObjects(self):
         global objects
@@ -52,10 +72,19 @@ class WeedTracker:
     def tracker_callback(self, t: color_tracker.ColorTracker):
         global objects
         if len(t.tracked_objects) > 0:
-            self.weed = True
+            self.weed = "Y"
         else:
-            self.weed = False
+            self.weed = "N"
         print("There is a plant :", self.weed)
+        if self.take_pic == True:
+            string = "./resources/" + self.time + "_" + str(self.gnss.latitude) + "_" + str(self.gnss.longitude) + "_" + self.weed + ".png"
+            cv2.imwrite(string, t.frame)
+            self.last_pose = self.pose
+            self.take_pic = False
+        distance = math.sqrt((self.pose.x - self.last_pose.x) **2 + (self.pose.y - self.last_pose.y) **2)
+        if distance > self.distance_to_take_pic:
+            self.take_pic = True
+            
         for i in range(len(t.tracked_objects)):
             
             if(objects < t.tracked_objects[i]._id):
@@ -68,14 +97,14 @@ class WeedTracker:
                 
                 if(pointX > 150 and pointX < 263 ):
                     print("1")
-                    self.pose.z = 1
+                    self.point.z = 1
                 elif(pointX > 263 and pointX < 375 ):
                     print("2")
-                    self.pose.z = 2
+                    self.point.z = 2
                 elif(pointX > 375 and pointX < 490 ):
                     print("3")
-                    self.pose.z = 3
-                self.pub_points.publish(self.pose)
+                    self.point.z = 3
+                self.pub_points.publish(self.point)
             #cv2.circle(t.debug_frame, t.tracked_objects[i].last_point, 5, [255,255,255], 3)  
         
         res = cv2.resize(t.debug_frame, (640,480))

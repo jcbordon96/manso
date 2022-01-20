@@ -27,11 +27,11 @@ class Run():
                     gnss.latitude = round(coords.lat,7)
                     gnss.longitude = round(coords.lon,7)
                     gnss.altitude = coords.height
-                    self.gnss_pub.publish(gnss)
                     time.data = str(coords.year).zfill(2)+str(coords.month).zfill(2)+str(coords.day).zfill(2)+"_"+str(coords.hour).zfill(2)+str(coords.min).zfill(2)+str(coords.sec).zfill(2)
                     self.time_pub.publish(time)
+                    self.gnss_pub.publish(gnss)
 
-                    print(str(coords.year).zfill(2)+str(coords.month).zfill(2)+str(coords.day).zfill(2)+"_"+str(coords.hour).zfill(2)+str(coords.min).zfill(2)+str(coords.sec).zfill(2)+"_"+str(round(coords.lon,7))+"_"+str(round(coords.lat,7))+"_"+"x")
+                    print(str(coords.year).zfill(2)+str(coords.month).zfill(2)+str(coords.day).zfill(2)+"_"+str(coords.hour).zfill(2)+str(coords.min).zfill(2)+str(coords.sec).zfill(2)+"_"+str(round(coords.lat,7))+"_"+str(round(coords.long,7))+"_"+"x")
                     # print(coords.lon, coords.lat)
                 except (ValueError, IOError) as err:
                     print(err)
