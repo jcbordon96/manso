@@ -86,6 +86,8 @@ class WeedTracker:
             self.last_pose = self.pose
             self.take_pic = False
         print(self.pose.x)
+        print(self.last_pose.x)
+        print(self.pose.x - self.last_pose.x)
         distance = math.sqrt((self.pose.x - self.last_pose.x) **2 + (self.pose.y - self.last_pose.y) **2)
         if distance > self.distance_to_take_pic:
             self.take_pic = True
