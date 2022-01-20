@@ -77,7 +77,7 @@ class WeedTracker:
             self.weed = "N"
         # print("There is a plant :", self.weed)
         if self.take_pic == True:
-            string = "./resources/" + self.time + "_" + str(self.gnss.latitude) + "_" + str(self.gnss.longitude) + "_" + self.weed + ".png"
+            string = "resources/" + self.time + "_" + str(self.gnss.latitude) + "_" + str(self.gnss.longitude) + "_" + self.weed + ".png"
             print(string)
             print(cv2.imwrite(string, t.frame))
             self.last_pose = self.pose
