@@ -85,7 +85,6 @@ class WeedTracker:
             print(cv2.imwrite(string_debug, t.debug_frame))
             self.last_pose = self.pose
             self.take_pic = False
-        print(self.pose.x)
         print(self.last_pose.x)
         print(self.pose.x - self.last_pose.x)
         distance = math.sqrt((self.pose.x - self.last_pose.x) **2 + (self.pose.y - self.last_pose.y) **2)
