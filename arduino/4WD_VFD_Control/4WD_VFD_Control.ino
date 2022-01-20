@@ -18,17 +18,17 @@
  * FREQUENCY VARIATOR DRIVERS
  * CONVENCION PARA MOTORES. RF = R(IGHT)F(ORWARD) ES EL MOTOR DERECHO DELANTERO
  */
-const int PWM_RF = 12;                        //0V-5V a 0V-10V en IBT2(BTS7960)
+const int PWM_RF = 11;                        //0V-5V a 0V-10V en IBT2(BTS7960)
 const int ONOFF_RF = 7;                      //K2: 
-const int CWCCW_RF = 8;
-const int PWM_LF = 11;                        //0V-5V a 0V-10V en IBT2(BTS7960)
-const int ONOFF_LF = 5;                      //K2: 
-const int CWCCW_LF = 6;
-const int PWM_RB = 10;                        //0V-5V a 0V-10V en IBT2(BTS7960)
-const int ONOFF_RB = 22;                      //K2: 
-const int CWCCW_RB = 23;
-const int PWM_LB = 9;                        //0V-5V a 0V-10V en IBT2(BTS7960)
-const int ONOFF_LB = 24;                      //K2: 
+const int CWCCW_RF = 22;
+const int PWM_LF = 10;                        //0V-5V a 0V-10V en IBT2(BTS7960)
+const int ONOFF_LF = 6;                      //K2: 
+const int CWCCW_LF = 23;
+const int PWM_RB = 9;                        //0V-5V a 0V-10V en IBT2(BTS7960)
+const int ONOFF_RB = 5;                      //K2: 
+const int CWCCW_RB = 24;
+const int PWM_LB = 8;                        //0V-5V a 0V-10V en IBT2(BTS7960)
+const int ONOFF_LB = 4;                      //K2: 
 const int CWCCW_LB = 25;
 float auxiliar;
 float joystickRight;
@@ -135,8 +135,9 @@ ros::Publisher pwmPID("/pwmPID", &pwm_pid);
 
 
 void setup(){
-  TCCR1B = TCCR1B & B11111000 | B00000001;              // for PWM frequency of 31372.55 Hz
-  TCCR2B = TCCR2B & B11111000 | B00000001;          // for PWM frequency of 31372.55 Hz
+  TCCR1B = TCCR1B & B11111000 | B00000001;              // D11 D12 for PWM frequency of 31372.55 Hz
+  TCCR2B = TCCR2B & B11111000 | B00000001;          // D9 D10 for PWM frequency of 31372.55 Hz
+  TCCR4B = TCCR4B & B11111000 | B00000001;   // D6 D7 D8 for PWM frequency of 31372.55 Hz   // for PWM frequency of 31372.55 Hz
   nh.initNode();
   nh.subscribe(sub_vel);
   nh.subscribe(OnOff_req);

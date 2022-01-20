@@ -14,6 +14,8 @@ class WeedTracker:
     global objects
     objects = -1
     close = False
+    distance_to_take_pic = 0.35
+    weed = False
     def __init__(self):
         retry = True
         rospy.Subscriber('odom', Odometry, self.odom_callback)
@@ -49,6 +51,11 @@ class WeedTracker:
 
     def tracker_callback(self, t: color_tracker.ColorTracker):
         global objects
+        if len(t.tracked_objects) > 0:
+            self.weed = True
+        else:
+            self.weed = False
+        print("There is a plant :", self.weed)
         for i in range(len(t.tracked_objects)):
             
             if(objects < t.tracked_objects[i]._id):
