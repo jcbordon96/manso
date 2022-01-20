@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-from dis import dis
-from turtle import distance
 import rospy
 import cv2
 import color_tracker
@@ -11,7 +9,9 @@ from sensor_msgs.msg import NavSatFix
 from std_msgs.msg import String
 import tf
 import math
-
+import os
+from datetime import datetime
+import csv
 
 class WeedTracker:
     pose = Point()
@@ -69,6 +69,44 @@ class WeedTracker:
         global objects
         objects = 1
 
+    def logwriter(lat, lon, state):
+        nowlogdate = datetime.now()
+        logdate = nowlogdate.strftime("%Y-%m-%d")
+        loghour = nowlogdate.strftime("%H:%M:%S")
+        datename = nowlogdate.strftime("%Y%m%d")
+        stringdatelog = "resources/logs/maps/diario/"+datename+".csv"
+        stringdatelogbackup = "resources/logs/maps/backup/"+datename+".csv"
+
+        if not os.path.exists(stringdatelog):
+            print("No existe el logfile diario")
+            header = [ "Fecha", "Hora", "Latitud", "Longitud", "Estado"]
+            with open(stringdatelog, 'w') as logfile:
+                wr = csv.writer(logfile)
+                wr.writerow(header)
+        with open(stringdatelog, 'a', newline='') as logfile:
+            wr = csv.writer(logfile)
+            wr.writerow([logdate, loghour, lat, lon, state])
+
+        if not os.path.exists(stringdatelogbackup):
+            print("No existe el logfile diario de backup")
+            header = [ "Fecha", "Hora", "Latitud", "Longitud", "Estado"]
+            with open(stringdatelogbackup, 'w') as logfile:
+                wr = csv.writer(logfile)
+                wr.writerow(header)
+        with open(stringdatelogbackup, 'a', newline='') as logfile:
+            wr = csv.writer(logfile)
+            wr.writerow([logdate, loghour, lat, lon, state])
+
+        if not os.path.exists('resources/logs/maps/map.csv'):
+            print("No existe el logfile diario de backup")
+            header = [ "Fecha", "Hora", "Latitud", "Longitud", "Estado"]
+            with open('resources/logs/maps/map.csv', 'w') as logfile:
+                wr = csv.writer(logfile)
+                wr.writerow(header)
+
+        with open('resources/logs/maps/map.csv', 'a', newline='') as logfile:
+            wr = csv.writer(logfile)
+            wr.writerow([logdate, loghour, lat, lon, state])
 
     def tracker_callback(self, t: color_tracker.ColorTracker):
         global objects
@@ -78,12 +116,13 @@ class WeedTracker:
             self.weed = "N"
         # print("There is a plant :", self.weed)
         if self.take_pic == True:
-            string_clear = "resources/clear/" + self.time + "_" + str(self.gnss.latitude) + "_" + str(self.gnss.longitude) + "_C_" + self.weed + ".png"
+            string_clear = "resources/images/clear/" + self.time + "_" + str(self.gnss.latitude) + "_" + str(self.gnss.longitude) + "_C_" + self.weed + ".png"
             print(string_clear)
             print(cv2.imwrite(string_clear, t.frame))
-            string_debug = "resources/debug/" + self.time + "_" + str(self.gnss.latitude) + "_" + str(self.gnss.longitude) + "_D_" + self.weed + ".png"
+            string_debug = "resources/images/debug/" + self.time + "_" + str(self.gnss.latitude) + "_" + str(self.gnss.longitude) + "_D_" + self.weed + ".png"
             print(string_debug)
             print(cv2.imwrite(string_debug, t.debug_frame))
+            self.logwriter(self.gnss.latitude, self.gnss.longitude, self.weed)
             self.last_pose.x = self.pose.x
             self.last_pose.y = self.pose.y
             self.take_pic = False
