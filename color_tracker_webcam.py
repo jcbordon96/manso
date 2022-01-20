@@ -109,11 +109,11 @@ class WeedTracker:
             #cv2.circle(t.debug_frame, t.tracked_objects[i].last_point, 5, [255,255,255], 3)  
         
         res = cv2.resize(t.debug_frame, (640,480))
-        cv2.rectangle(res, (150,0), (150,480),[255,0,255], 3)
-        cv2.rectangle(res, (490,0), (490,480),[255,0,255], 3)
-        cv2.rectangle(res, (263,0), (263,480),[0,255,0], 3)
-        cv2.rectangle(res, (0,240), (640,240),[0,255,0], 3)
-        cv2.rectangle(res, (375,0), (375,480),[0,255,0], 3)
+        # cv2.rectangle(res, (150,0), (150,480),[255,0,255], 3)
+        # cv2.rectangle(res, (490,0), (490,480),[255,0,255], 3)
+        # cv2.rectangle(res, (263,0), (263,480),[0,255,0], 3)
+        # cv2.rectangle(res, (0,240), (640,240),[0,255,0], 3)
+        # cv2.rectangle(res, (375,0), (375,480),[0,255,0], 3)
         cv2.imshow("debug", res)
         # cv2.waitKey(1)
         if cv2.waitKey(10) & 0xFF == ord('q'):
