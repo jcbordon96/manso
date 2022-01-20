@@ -86,6 +86,7 @@ class WeedTracker:
             print(cv2.imwrite(string_debug, t.debug_frame))
             self.last_pose = self.pose
             self.take_pic = False
+        print((self.pose.x - self.last_pose.x))
         if self.distance != math.sqrt((self.pose.x - self.last_pose.x) **2 + (self.pose.y - self.last_pose.y) **2):
             self.distance = math.sqrt((self.pose.x - self.last_pose.x) **2 + (self.pose.y - self.last_pose.y) **2)
         if self.distance > self.distance_to_take_pic:
