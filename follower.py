@@ -6,7 +6,7 @@ from std_msgs.msg import Bool
 import numpy as np
 import cv2
 from geometry_msgs.msg import Twist
-
+from std_msgs.msg import Int16
 
 class Follower:
     msg = Twist()
@@ -16,6 +16,7 @@ class Follower:
     def __init__(self):
         self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
         rospy.Subscriber('follower_request', Bool, self.follower_request_callback)
+        self.voice_pub = rospy.Publisher('voice_cmd', Int16, queue_size=10)
         flagStop = False
         # Capturing video through webcam
         webcam = cv2.VideoCapture("/dev/FOLLOWER")
@@ -112,15 +113,19 @@ class Follower:
                     if value == -1:
                         self.msg.linear.x = 0.0
                         self.msg.angular.z = 0.0
+                        self.voice_pub(-1)
                     elif value < 220:
                         self.msg.linear.x = self.linear
                         self.msg.angular.z = self.angular
+                        self.voice_pub(1)
                     elif value > 420:
                         self.msg.linear.x = self.linear
                         self.msg.angular.z = - self.angular
+                        self.voice_pub(2)
                     else: 
                         self.msg.linear.x = self.linear
                         self.msg.angular.z = 0
+                        self.voice_pub(0)
                     self.pub.publish(self.msg)
                     self.status = value
 def main():
