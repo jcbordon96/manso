@@ -14,7 +14,7 @@ class Voice:
             self.cmd = msg.data
 
         rospy.Subscriber('voice_cmd', Int16, callback)
-        while(1):
+        while not rospy.is_shutdown():
             if(self.cmd == -1 and self.compensationValue != -1):
                 os.system("mpg123 /home/appelie/manso_ws/src/v1/scripts/manso/resources/voice/detenido.mp3")
                 self.compensationValue = -1
