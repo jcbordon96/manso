@@ -106,6 +106,9 @@
 <node pkg="v1" type="patinetaV2.py" name="patin" output="screen">
 
 </node>
+<node pkg="v1" type="voice.py" name="voice" output="screen">
+
+</node>
 <node pkg="v1" type="gps_test.py" name="gps" output="screen">
 
 </node>
