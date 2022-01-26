@@ -27,6 +27,9 @@ class Voice:
             elif(self.cmd == 2 and self.compensationValue != 2):
                 os.system("mpg123 /home/appelie/manso_ws/src/v1/scripts/manso/resources/voice/com_der.mp3")
                 self.compensationValue = 2
+            elif(self.cmd == 3):
+                os.system("mpg123 /home/appelie/manso_ws/src/v1/scripts/manso/resources/voice/easter0.mp3")
+                self.compensationValue = 3
     
 def main():
     rospy.init_node('Voice', anonymous=True)
