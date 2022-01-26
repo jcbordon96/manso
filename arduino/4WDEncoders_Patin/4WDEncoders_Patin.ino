@@ -99,10 +99,10 @@ float rps_req_LB = 0.0;
 float rps_req_LB_last = 0.0;
 float rps_req_LB_cmd = 0.0;
 //encoderArm
-#define c_ArmYEncoderInterruptA 3
-#define c_ArmYEncoderInterruptB 2
-#define c_ArmYEncoderPinA 21
-#define c_ArmYEncoderPinB 20
+#define c_ArmYEncoderInterruptA 2
+#define c_ArmYEncoderInterruptB 3
+#define c_ArmYEncoderPinA 20
+#define c_ArmYEncoderPinB 21
 #define ArmYEncoderIsReversed
 volatile bool _ArmYEncoderASet;
 volatile bool _ArmYEncoderBSet;
@@ -281,7 +281,7 @@ void mangueraCb(const std_msgs::Int16& msg) {
   //new_goal = true; 
 }
 void stopCb(const std_msgs::Bool& msg){
-  stop_req = msg.data
+  stop_req = msg.data;
 }
 void controlCb(const std_msgs::Int8& msg) {
   controlMode = msg.data;
@@ -331,6 +331,7 @@ ros::Publisher endstopRight_pub("EndStopRight", &endStopRight);
 ros::Publisher endstopLeft_pub("EndStopLeft", &endStopLeft);
 ros::Publisher endstopTool_pub("EndStopTool", &endStopLeft);
 ros::Publisher stuck_pub("wheel_stuck", &stuck);
+ros::Publisher encoder_pub("wheel_encoders", &encoder);
 // ros::Publisher velo_pub("velo", &Velo);
 
 //V2
@@ -524,7 +525,7 @@ void loop(){
       /*
       * TOOL: PATIN
       */
-      //PubPose();
+      //PubArmPose();
       endStopRight.data = arm_is_right;
       endstopRight_pub.publish ( &endStopRight );
       endStopLeft.data = arm_is_left;
@@ -775,7 +776,7 @@ void armCommand(){
     pwm_tool = 1;
     while(arm_is_left == false && pwm_tool == 1 && stop_flag == false){ 
       motorGo(0, pwm_tool, 150);
-      PubPose();
+      PubArmPose();
     }
   motorGo(0,0,0);
   cmd_flag = 0;
@@ -785,7 +786,7 @@ void armCommand(){
     move_is_ok = false;
     while(move_is_ok == false && stop_flag == false){
       MoveArm(middle);
-      PubPose();
+      PubArmPose();
     }
     cmd_flag = 0;
   }
@@ -794,7 +795,7 @@ void armCommand(){
     pwm_tool = 2;
     while(arm_is_right == false && pwm_tool == 2 && stop_flag == false){ 
       motorGo(0, pwm_tool, 150);
-      PubPose();
+      PubArmPose();
     }
     motorGo(0,0,0);
     cmd_flag = 0;
@@ -820,7 +821,7 @@ void CV(){
       move_is_ok = false;
       if(move_is_ok == false && stop_flag == false){
         MoveArm(left);
-        //PubPose();
+        //PubArmPose();
       }
     }
   //motorGo(0,0,0);
@@ -831,7 +832,7 @@ void CV(){
     move_is_ok = false;
     if(move_is_ok == false && stop_flag == false){
       MoveArm(middle);
-      //PubPose();
+      //PubArmPose();
     }
     //cmd_flag = 0;
   }
@@ -842,7 +843,7 @@ void CV(){
     if(arm_is_right == false && pwm_tool == 2 && stop_flag == false){ 
       if(move_is_ok == false && stop_flag == false){
         MoveArm(right);
-        //PubPose();
+        //PubArmPose();
       }
     }
     //motorGo(0,0,0);
@@ -914,21 +915,21 @@ void tool(){
       armDiagnostics.data = " patin ON 1";
       armDiagnostics_pub.publish ( &armDiagnostics );
       motorGo(1, ARM_LEFT, 254);
-      PubPose();
+      PubArmPose();
     }
     while (tool_is_ok == false){
       motorGo(1, ARM_LEFT, 254);
       armDiagnostics.data = " patin ON 2";
       armDiagnostics_pub.publish ( &armDiagnostics );
-      PubPose();
+      PubArmPose();
       //startTool = false;
-      PubPose();
+      PubArmPose();
     }
     if (tool_is_ok == true){
       motorGo(1, ARM_LEFT, 0);
       armDiagnostics.data = " patin OFF";
       armDiagnostics_pub.publish ( &armDiagnostics );
-      PubPose();
+      PubArmPose();
     }
   /*while (millis() - timerTool < 2000){
     armDiagnostics.data = " timer";
