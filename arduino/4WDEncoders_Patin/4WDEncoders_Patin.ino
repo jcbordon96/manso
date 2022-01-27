@@ -114,6 +114,8 @@ volatile double arm_pose = 0;
 const int ARM_RIGHT = 2;
 const int ARM_LEFT = 1;
 
+#define c_StopInterrupt A8
+
 float auxiliar;
 unsigned long new_cmd_vel_timer = 0.0;
 unsigned long timer = 0;
@@ -127,7 +129,8 @@ bool to_zero = false;
 bool warn_stuck = false;
 bool is_warned = false;
 bool filterReq = false;
-bool stop_req = false;
+volatile bool stop_req = false;
+volatile bool hard_stop = false;
 float rps_limit = 0.25;
 bool accel_control = true;
 int sum_error = 0;
@@ -281,7 +284,9 @@ void mangueraCb(const std_msgs::Int16& msg) {
   //new_goal = true; 
 }
 void stopCb(const std_msgs::Bool& msg){
-  stop_req = msg.data;
+  if(hard_stop == false){
+    stop_req = msg.data;
+  }
 }
 void controlCb(const std_msgs::Int8& msg) {
   controlMode = msg.data;
@@ -302,6 +307,7 @@ geometry_msgs::Twist pwm;
 std_msgs::Bool endStopRight;
 std_msgs::Bool endStopLeft;
 std_msgs::Bool endStopTool;
+std_msgs::Bool emergency_stop;
 std_msgs::Float32 distancetozone;
 std_msgs::String armDiagnostics;
 std_msgs::Float32 armPose;
@@ -321,6 +327,7 @@ ros::Publisher pwm_pub("/wheel_pwm", &pwm);
 //ros::Publisher motorH_pub("motorH", &motorH);
 //ros::Subscriber<std_msgs::Int16> sub_pwmArm("pwmArm_cmd", &pwmArmCb);
 //ros::Subscriber<std_msgs::Int8> sub_pwmTool("pwmTool_cmd", &pwmToolCb);
+ros::Publisher emergency_stop_status_pub("emergency_stop_status", &emergency_stop);//
 ros::Publisher distanceToZone_pub("distanceToZone", &distancetozone);//
 ros::Publisher armDiagnostics_pub("armDiagnostics", &armDiagnostics);//
 ros::Publisher armPose_pub("armPose", &armPose);
@@ -363,6 +370,7 @@ void setup(){
   nh.subscribe(controlSelect);
   nh.subscribe(manguera_req);
   nh.advertise(pwmPID);
+  nh.advertise(emergency_stop_status_pub);
   //V3
 
   RFPID.SetMode(AUTOMATIC);
@@ -398,6 +406,7 @@ void setup(){
   attachPinChangeInterrupt (c_ToolEndStopInterrupt, HandleToolEndStopInterrupt, CHANGE);
   attachPinChangeInterrupt (c_LeftEndStopInterrupt, HandleLeftEndStopInterrupt, CHANGE);
   attachPinChangeInterrupt (c_RightEndStopInterrupt, HandleRightEndStopInterrupt, CHANGE);
+  attachPinChangeInterrupt (c_StopInterrupt, HandleStopInterrupt, CHANGE);
   
   pinMode(MOTOR_ARM_RPWM_PIN, OUTPUT);
   pinMode(MOTOR_ARM_LPWM_PIN, OUTPUT);
@@ -543,6 +552,10 @@ void loop(){
       CV();
     //armCommand();
     nh.spinOnce();
+    }
+    else{
+      emergency_stop.data = stop_req;
+      emergency_stop_status_pub.publish( &emergency_stop);
     }
   }
 }
@@ -1172,4 +1185,9 @@ void HandleLeftEndStopInterrupt(){
   if(arm_is_left == true){
     motorGo(0, ARM_RIGHT, 0);
   }
+}
+
+void HandleStopInterrupt(){
+  stop_req = !digitalRead(c_StopInterrupt);
+  hard_stop = !digitalRead(c_StopInterrupt);
 }

@@ -97,6 +97,10 @@ void mangueraCb(const std_msgs::Int16& msg) {
   InputFollowerCb = msg.data;
   //new_goal = true; 
 }
+void emergency_stop_statusCb(const std_msgs::Bool& msg) {
+  stop_req = msg.data;
+  //new_goal = true; 
+}
 void controlCb(const std_msgs::Int8& msg) {
   controlMode = msg.data;
   if (controlMode == 0){
@@ -118,12 +122,15 @@ std_msgs::String ControlSignal;
 std_msgs::Int16 inputfollower;
 std_msgs::Int16 pwm_pid;
 std_msgs::Float32 Pose;
+std_msgs::Bool OnOff_status;
 //TOPICOS
 //ros::Subscriber<geometry_msgs::Twist> sub_vel("cmd_vel", &messageCb);
+ros::Subscriber<std_msgs::Bool> sub_emergency_stop("/emergency_stop_status", &emergency_stop_statusCb);
 ros::Subscriber<geometry_msgs::Twist> sub_vel("/wheel_pwm", &messageCb);
 ros::Subscriber<std_msgs::Bool> OnOff_req("OnOff_cmd", &OnOff_Cb);
 ros::Subscriber<std_msgs::Int16> manguera_req("manguera_cmd", &mangueraCb);
 ros::Subscriber<std_msgs::Int8> controlSelect("controlSelect", &controlCb);
+ros::Publisher OnOff_status_pub("/OnOff_cmd_status", &OnOff_status);
 ros::Publisher MotorRF("/motorRF", &motorRF);      //On=True=StartMotor   ;   Off=False=StopMotor
 ros::Publisher MotorLF("/motorLF", &motorLF);      //On=True=StartMotor   ;   Off=False=StopMotor
 ros::Publisher MotorRB("/motorRB", &motorRB);      //On=True=StartMotor   ;   Off=False=StopMotor
@@ -147,6 +154,7 @@ void setup(){
   nh.advertise(MotorRB);
   nh.advertise(MotorLB);
   nh.advertise(Joystick);
+  nh.advertise(OnOff_status_pub);
   //nh.advertise(controlManguera);
   //nh.subscribe(controlSelect);
   nh.advertise(pwmPID);
@@ -192,12 +200,15 @@ void loop(){
       digitalWrite (ONOFF_LF, LOW);
       digitalWrite (ONOFF_RB, LOW);
       digitalWrite (ONOFF_LB, LOW);
+      OnOff_status.data = true;
+
     }
     else if (OnOff == false){
       digitalWrite (ONOFF_RF, HIGH);
       digitalWrite (ONOFF_LF, HIGH);
       digitalWrite (ONOFF_RB, HIGH);
       digitalWrite (ONOFF_LB, HIGH);
+      OnOff_status.data = false;
     }
       VEL_RF_PWM = pwmFR;
       VEL_LF_PWM = pwmFL;
@@ -209,9 +220,23 @@ void loop(){
       motorGo_FVD(2, DIR_RB, VEL_RB_PWM);
       motorGo_FVD(3, DIR_LB, VEL_LB_PWM);
       motorPub();
+      OnOff_status_pub.publish(&OnOff_status);
       nh.spinOnce(); 
       timer = millis();    
     }
+  else if((millis()-timer) > 100 && stop_req == true){
+    motorGo_FVD(0, DIR_RF, 0);
+    motorGo_FVD(1, DIR_LF, 0); 
+    motorGo_FVD(2, DIR_RB, 0);
+    motorGo_FVD(3, DIR_LB, 0);
+    digitalWrite (ONOFF_RF, HIGH);
+    digitalWrite (ONOFF_LF, HIGH);
+    digitalWrite (ONOFF_RB, HIGH);
+    digitalWrite (ONOFF_LB, HIGH);
+    OnOff_status.data = false;
+    OnOff_status_pub.publish(&OnOff_status);
+
+  }
   nh.spinOnce();
 }
 void SetupFVD(){
