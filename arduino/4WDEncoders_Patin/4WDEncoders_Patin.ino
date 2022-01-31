@@ -462,6 +462,8 @@ void loop(){
     nh.spinOnce();
     }
     else{
+      stop_req = !digitalRead(c_StopInterrupt);
+      hard_stop = !digitalRead(c_StopInterrupt);
       emergency_stop.data = stop_req;
       emergency_stop_status_pub.publish( &emergency_stop);
     }

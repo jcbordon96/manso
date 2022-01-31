@@ -215,7 +215,7 @@ void loop(){
     OnOff_status_pub.publish(&OnOff_status);
 
   }
-  nh.spinOnce();d
+  nh.spinOnce();
 }
 void SetupFVD(){
   analogWrite (PWM_RF, 0);
@@ -256,7 +256,7 @@ void motorGoDIR (){
       CWCCW_L = 1;
       DIR_LB = 2;
     }
-    DIR_LB = DIR_RB
+    DIR_LB = DIR_RB;
   //}
   /*else if (DIR_R == 0 || DIR_L == 0){
     DIR_RF = 0;
