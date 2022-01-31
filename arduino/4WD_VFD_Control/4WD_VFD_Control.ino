@@ -31,8 +31,7 @@ const int PWM_LB = 8;                        //0V-5V a 0V-10V en IBT2(BTS7960)
 const int ONOFF_LB = 4;                      //K2: 
 const int CWCCW_LB = 25;
 float auxiliar;
-float joystickRight;
-float joystickLeft;
+
 float new_cmd_vel_timer = 0.0;
 bool OnOff = false;
 float Hz = 0.0;
@@ -56,10 +55,7 @@ int vel_PWM_joystickScale = 254;
 const float gearTrain = 0.42857; 
 const float wheel_diameter = 0.63;
 const float track_width = 1.0;
-bool mangueraCommand = false;
-bool joystickCommand = false;
-int InputFollowerCb = 320;
-//int InputFollower = 0;
+
 int pwmControl = 0;
 int controlMode = 0;
 int pwmFR = 0;
@@ -93,25 +89,12 @@ void messageCb(const geometry_msgs::Twist& msg){     //vector velocidad
   DIR_R = msg.angular.y;
   DIR_L = msg.angular.z;
 }
-void mangueraCb(const std_msgs::Int16& msg) {
-  InputFollowerCb = msg.data;
-  //new_goal = true; 
-}
+
 void emergency_stop_statusCb(const std_msgs::Bool& msg) {
   stop_req = msg.data;
   //new_goal = true; 
 }
-void controlCb(const std_msgs::Int8& msg) {
-  controlMode = msg.data;
-  if (controlMode == 0){
-    joystickCommand = true;
-    mangueraCommand = false;
-  }
-  if (controlMode == 1){
-    joystickCommand = false;
-    mangueraCommand = true;
-  }
-}
+
 //TOPICOS MSGS
 geometry_msgs::Vector3 motorRF;
 geometry_msgs::Vector3 motorLF;
@@ -128,8 +111,7 @@ std_msgs::Bool OnOff_status;
 ros::Subscriber<std_msgs::Bool> sub_emergency_stop("/emergency_stop_status", &emergency_stop_statusCb);
 ros::Subscriber<geometry_msgs::Twist> sub_vel("/wheel_pwm", &messageCb);
 ros::Subscriber<std_msgs::Bool> OnOff_req("OnOff_cmd", &OnOff_Cb);
-ros::Subscriber<std_msgs::Int16> manguera_req("manguera_cmd", &mangueraCb);
-ros::Subscriber<std_msgs::Int8> controlSelect("controlSelect", &controlCb);
+
 ros::Publisher OnOff_status_pub("/OnOff_cmd_status", &OnOff_status);
 ros::Publisher MotorRF("/motorRF", &motorRF);      //On=True=StartMotor   ;   Off=False=StopMotor
 ros::Publisher MotorLF("/motorLF", &motorLF);      //On=True=StartMotor   ;   Off=False=StopMotor
@@ -148,15 +130,11 @@ void setup(){
   nh.initNode();
   nh.subscribe(sub_vel);
   nh.subscribe(OnOff_req);
-  //nh.subscribe(manguera_req);
   nh.advertise(MotorRF);
   nh.advertise(MotorLF);
   nh.advertise(MotorRB);
   nh.advertise(MotorLB);
-  nh.advertise(Joystick);
   nh.advertise(OnOff_status_pub);
-  //nh.advertise(controlManguera);
-  //nh.subscribe(controlSelect);
   nh.advertise(pwmPID);
 
   pinMode(PWM_RF, OUTPUT);
@@ -368,10 +346,7 @@ void motorPub(){
   motorLF.y = CWCCW_L;
   motorRB.y = DIR_RB;
   motorLB.y = CWCCW_L;
-  motorRF.z = joystickRight;
-  motorLF.z = joystickLeft;
-  motorRB.z = joystickRight;
-  motorLB.z = joystickLeft;
+
   MotorRF.publish( &motorRF );
   MotorLF.publish( &motorLF );
   MotorRB.publish( &motorRB );
