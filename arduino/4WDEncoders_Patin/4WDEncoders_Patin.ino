@@ -470,10 +470,10 @@ void loop(){
 }
 void motorGoDIR (){
   if(rps_req_RF>0){
-    DIR_R = 1;
+    DIR_R = 2;
   }
   else if (rps_req_RF<0){
-    DIR_R = 2;
+    DIR_R = 1;
   }
   if(rps_req_LF>0){
     DIR_L = 1;
