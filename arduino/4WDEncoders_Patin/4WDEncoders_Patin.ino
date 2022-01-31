@@ -278,10 +278,7 @@ void cvTool_Cb(const std_msgs::Int8& msg) {
     startTool = msg.data;
     stop_flag = false;
 }
-void mangueraCb(const std_msgs::Int16& msg) {
-  InputFollowerCb = msg.data;
-  //new_goal = true; 
-}
+
 void stopCb(const std_msgs::Bool& msg){
   if(hard_stop == false){
     stop_req = msg.data;
@@ -311,10 +308,7 @@ std_msgs::Int16 stuck;
 ros::Subscriber<geometry_msgs::Twist> sub_vel("cmd_vel", &messageCb);
 ros::Subscriber<std_msgs::Bool> sub_stop("stop", &stopCb);
 ros::Publisher pwm_pub("/wheel_pwm", &pwm);
-//tool:patin
-//ros::Publisher motorH_pub("motorH", &motorH);
-//ros::Subscriber<std_msgs::Int16> sub_pwmArm("pwmArm_cmd", &pwmArmCb);
-//ros::Subscriber<std_msgs::Int8> sub_pwmTool("pwmTool_cmd", &pwmToolCb);
+
 ros::Publisher emergency_stop_status_pub("emergency_stop_status", &emergency_stop);//
 ros::Publisher distanceToZone_pub("distanceToZone", &distancetozone);//
 ros::Publisher armDiagnostics_pub("armDiagnostics", &armDiagnostics);//
@@ -435,19 +429,6 @@ void loop(){
     // veloPub();
     if(stop_req == false){
 
-      /*if (rps_req_RF == 0){
-        VEL_RF_PWM = 0;
-        VEL_RB_PWM = VEL_RF_PWM;
-        rps_req_LB_cmd = rps_req_LB;
-        rps_req_LF_cmd = rps_req_LF;
-      }
-      else if (rps_req_LF == 0){
-        VEL_LF_PWM = 0;
-        VEL_LB_PWM = VEL_LF_PWM;
-        rps_req_RF_cmd = rps_req_RF;
-        rps_req_RB_cmd = rps_req_RB;     
-      }
-      else{*/
       rps_req_RF_cmd = rps_req_RF;
       rps_req_LF_cmd = rps_req_LF;
       rps_req_RB_cmd = rps_req_RB;
