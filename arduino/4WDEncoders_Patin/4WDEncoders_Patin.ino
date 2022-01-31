@@ -380,6 +380,7 @@ void setup(){
   pinMode(c_ToolEndStopInterrupt, INPUT_PULLUP); 
   pinMode(c_LeftEndStopInterrupt, INPUT_PULLUP); 
   pinMode(c_RightEndStopInterrupt, INPUT_PULLUP);
+  pinMode(c_StopInterrupt, INPUT_PULLUP);
   attachPinChangeInterrupt (c_ToolEndStopInterrupt, HandleToolEndStopInterrupt, CHANGE);
   attachPinChangeInterrupt (c_LeftEndStopInterrupt, HandleLeftEndStopInterrupt, CHANGE);
   attachPinChangeInterrupt (c_RightEndStopInterrupt, HandleRightEndStopInterrupt, CHANGE);
