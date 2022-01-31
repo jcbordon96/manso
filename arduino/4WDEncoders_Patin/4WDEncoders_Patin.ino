@@ -205,8 +205,7 @@ bool firstEndStopLeft = true;
 //V2
 //mangueraCb
 int controlMode = 0;
-bool mangueraCommand = false;
-bool joystickCommand = false;
+
 float Pose = 0.0;
 //follower cb
 int InputFollowerCb = 320;
@@ -288,17 +287,7 @@ void stopCb(const std_msgs::Bool& msg){
     stop_req = msg.data;
   }
 }
-void controlCb(const std_msgs::Int8& msg) {
-  controlMode = msg.data;
-  if (controlMode == 0){
-    joystickCommand = true;
-    mangueraCommand = false;
-  }
-  if (controlMode == 1){
-    joystickCommand = false;
-    mangueraCommand = true;
-  }
-}
+
 ros::NodeHandle nh;
 //TOPICOS MSGS
 geometry_msgs::Twist encoder;
@@ -313,7 +302,6 @@ std_msgs::String armDiagnostics;
 std_msgs::Float32 armPose;
 std_msgs::Float32 Timer;
 //V2
-std_msgs::String ControlSignal;
 std_msgs::Int16 pwm_pid;
 std_msgs::Float32 pose;
 std_msgs::Int16 stuck;
@@ -342,9 +330,7 @@ ros::Publisher encoder_pub("wheel_encoders", &encoder);
 // ros::Publisher velo_pub("velo", &Velo);
 
 //V2
-ros::Subscriber<std_msgs::Int16> manguera_req("manguera_cmd", &mangueraCb);
-ros::Subscriber<std_msgs::Int8> controlSelect("controlSelect", &controlCb);
-ros::Publisher controlManguera("/mangera_debug", &ControlSignal);//Manguera debug
+
 ros::Publisher pwmPID("/pwmPID", &pwm_pid);//
 ros::Publisher pose_pub("/mansoPose", &pose);
 
@@ -366,9 +352,6 @@ void setup(){
   nh.subscribe(sub_cvArm);
   nh.subscribe(sub_cvTool);
   //V2
-  nh.advertise(controlManguera);
-  nh.subscribe(controlSelect);
-  nh.subscribe(manguera_req);
   nh.advertise(pwmPID);
   nh.advertise(emergency_stop_status_pub);
   //V3
@@ -465,71 +448,15 @@ void loop(){
         rps_req_RB_cmd = rps_req_RB;     
       }
       else{*/
-      if (joystickCommand == true){
-        rps_req_RF_cmd = rps_req_RF;
-        rps_req_LF_cmd = rps_req_LF;
-        rps_req_RB_cmd = rps_req_RB;
-        rps_req_LB_cmd = rps_req_LB;
-        accelerationRamp();
-        PIDloop();
-        pwmPub();
-        ControlSignal.data = "Joystick Mode";
-        controlManguera.publish ( &ControlSignal );
-      }
-      if (mangueraCommand == true){
-        rps_req_RF = 0.25; // x/(3.1416*wheel_diameter)
-        rps_req_LF = 0.25;
-        rps_req_RB = rps_req_RF;
-        rps_req_LB = rps_req_LF;
-        accelerationRamp();
-        PIDloop();
-        DIR_R = 1;
-        DIR_L = 1;
-        InputFollower = InputFollowerCb;
-        SetpointFollower = 320;   //640px, 320px medio(derecho) 0px(desvIzq) 640px(desvDer)
-        followerPID.Compute();
-        pwmControl = OutputFollower;
-        pwm_pid.data = pwmControl;
-        pwmPID.publish( &pwm_pid );
-        if (InputFollowerCb < 220 && InputFollowerCb != -1){
-            VEL_RF_PWM = VEL_RF_PWM;
-            VEL_LF_PWM = VEL_LF_PWM + pwmControl;
-            VEL_RB_PWM = VEL_RB_PWM;
-            VEL_LB_PWM = VEL_LB_PWM + pwmControl;
-            ControlSignal.data = "compensarDesvIzq";
-            if (VEL_LF_PWM > 250){
-            VEL_LF_PWM = 250;
-            VEL_LB_PWM = 250;
-          }
-        }
-        else if (InputFollowerCb > 420){
-          VEL_RF_PWM = VEL_RF_PWM - pwmControl;
-          VEL_LF_PWM = VEL_LF_PWM;
-          VEL_RB_PWM = VEL_RB_PWM - pwmControl;
-          VEL_LB_PWM = VEL_LB_PWM;
-          if (VEL_RF_PWM > 250){
-            VEL_RF_PWM = 250;
-            VEL_RB_PWM = 250;
-          }
-          ControlSignal.data = "compensarDesvDerecha";
-        }
-        else if (InputFollowerCb == -1){
-          VEL_RF_PWM = 0;
-          VEL_LF_PWM = 0;
-          VEL_RB_PWM = 0;
-          VEL_LB_PWM = 0;
-          ControlSignal.data = "Stop";
-        }
-        else{
-          VEL_RF_PWM = VEL_RF_PWM;
-          VEL_LF_PWM = VEL_LF_PWM;
-          VEL_RB_PWM = VEL_RB_PWM;
-          VEL_LB_PWM = VEL_LB_PWM;
-          ControlSignal.data = "Alineado";
-        }
-        controlManguera.publish ( &ControlSignal );
-        pwmPub();
-      } 
+      rps_req_RF_cmd = rps_req_RF;
+      rps_req_LF_cmd = rps_req_LF;
+      rps_req_RB_cmd = rps_req_RB;
+      rps_req_LB_cmd = rps_req_LB;
+      accelerationRamp();
+      PIDloop();
+      pwmPub();
+
+      
       timer = millis();
       /*
       * TOOL: PATIN
@@ -557,6 +484,7 @@ void loop(){
       emergency_stop.data = stop_req;
       emergency_stop_status_pub.publish( &emergency_stop);
     }
+  
   }
 }
 void motorGoDIR (){
