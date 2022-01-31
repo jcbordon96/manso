@@ -34,7 +34,7 @@ float auxiliar;
 float joystickRight;
 float joystickLeft;
 float new_cmd_vel_timer = 0.0;
-bool OnOff = true;
+bool OnOff = false;
 float Hz = 0.0;
 int CWCCW_R = 1;
 int CWCCW_L = 1;
@@ -242,18 +242,18 @@ void loop(){
 void SetupFVD(){
   analogWrite (PWM_RF, 0);
   digitalWrite (ONOFF_RF, LOW);
-  digitalWrite (CWCCW_RF, HIGH);
+  digitalWrite (CWCCW_RF, LOW);
   CWCCW_R = 1;
   analogWrite (PWM_LF, 0);
   digitalWrite (ONOFF_LF, LOW);
-  digitalWrite (CWCCW_LF, HIGH);
+  digitalWrite (CWCCW_LF, LOW);
   CWCCW_L = 1;
   analogWrite (PWM_RB, 0);
   digitalWrite (ONOFF_RB, LOW);
-  digitalWrite (CWCCW_RB, HIGH);
+  digitalWrite (CWCCW_RB, LOW);
   analogWrite (PWM_LB, 0);
   digitalWrite (ONOFF_LB, LOW);
-  digitalWrite (CWCCW_LB, HIGH);
+  digitalWrite (CWCCW_LB, LOW);
 }
 void motorGoDIR (){
   //if (DIR_R == 0 && DIR_L == 0){
