@@ -11,8 +11,9 @@ from std_msgs.msg import Int16
 class Follower:
     msg = Twist()
     angular = 0.1
-    linear = 0.40
+    linear = 0.15
     request = True
+    vois = Int16()
     def __init__(self):
         self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
         rospy.Subscriber('follower_request', Bool, self.follower_request_callback)
@@ -81,7 +82,7 @@ class Follower:
 
                         #print(area)
                         #print(len(approx))
-                        print(x)
+                        # print(x)
                 if framesEmpty >= 40:
                     self.pubCorrection(-1)
                     flagStop = True
@@ -97,8 +98,8 @@ class Follower:
                     cap.release()
                     cv2.destroyAllWindows()
                     break
-            except:
-                print("except")
+            except Exception as e:
+                print(e)
                 pass
     def follower_request_callback(self, msg):
         self.request = msg.data
@@ -108,25 +109,31 @@ class Follower:
             self.pub.publish(self.msg)
     def pubCorrection(self, value):
             if self.request == True:
-                if(self.status != value):
+                if(True):
                     print(self.status)
                     if value == -1:
                         self.msg.linear.x = 0.0
                         self.msg.angular.z = 0.0
-                        self.voice_pub(-1)
+                        self.vois.data = -1
+                        self.voice_pub.publish(self.vois)
                     elif value < 220:
                         self.msg.linear.x = self.linear
                         self.msg.angular.z = self.angular
-                        self.voice_pub(1)
+                        self.vois.data = 1
+                        self.voice_pub.publish(self.vois)
                     elif value > 420:
                         self.msg.linear.x = self.linear
                         self.msg.angular.z = - self.angular
-                        self.voice_pub(2)
+                        self.vois.data = 2
+                        self.voice_pub.publish(self.vois)
                     else: 
                         self.msg.linear.x = self.linear
                         self.msg.angular.z = 0
-                        self.voice_pub(0)
+                        self.vois.data = 0
+                        self.voice_pub.publish(self.vois)
+                        
                     self.pub.publish(self.msg)
+                    print(self.msg)
                     self.status = value
 def main():
     rospy.init_node('Follower', anonymous=True)

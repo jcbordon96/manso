@@ -7,7 +7,7 @@ from nav_msgs.msg import Odometry
 from std_msgs.msg import Int8
 from std_msgs.msg import Float32
 from std_msgs.msg import Bool
-from geometry_msgs.msg import Point, Pose2D
+from geometry_msgs.msg import Point, Pose2D, PointStamped
 import time 
 import tf
 
@@ -48,14 +48,14 @@ class patineta:
         self.zoneGoal = 0
         self.zone = 0
         self.okZoneGoal = False
-        self.precisionArm = 15
+        self.precisionArm = 30
 
         #self.pub = rospy.Publisher("time", Float32, queue_size=10)
         self.pubArduino = rospy.Publisher("cvTool_cmd", Bool, queue_size=10)
         self.pubZoneGoal = rospy.Publisher("cvArm_cmd", Int8, queue_size=10)
         rospy.Subscriber('odom', Odometry, self.pose_callback)
         rospy.Subscriber('armPose', Float32, self.armPose_callback)
-        rospy.Subscriber('weed_points', Point, self.points_callback)
+        rospy.Subscriber('weed_points', PointStamped, self.points_callback)
 
         rospy.loginfo("Run polar arm has been started")
         rospy.loginfo(self.elements)
@@ -80,37 +80,39 @@ class patineta:
                         print(self.distance)
                         if (self.distance < self.distance_down):
                             self.elements.pop(0)
-                            print("punto filtrado")
+                            print("El punto estaba demasiado cerca")
                         #if (self.execute == False):
                         else:
                             # self.goal = self.element
-                            self.pubZoneGoal.publish(self.zone)
-                            print (self.zone)
+                            print(self.zone)
+                            self.pubZoneGoal.publish(int(self.zone))
+
                             #self.elements.pop(0)
                             self.execute = True
-                            print("pase el punto a goal") 
+                            print("El punto paso a ejecucion") 
                     else:
                         self.elements.pop(0)
-                        print("punto filtrado")
+                        print("El punto quedo atras (THETA)")
                 #-------------------------- execute function --------------------------
                 else:
                     self.DistanceToLow = sqrt((self.point.x - self.pose.x) **2 + (self.point.y - self.pose.y) **2)
                     self.DistanceToZone = self.zoneGoal - self.armPose
 
-                    if (self.okZoneGoal == False or self.ok_goal == False):
-                        print("goalX: {}/ mansoPose: {} /distanceToStart: {} /goalZone: {}/ armPose: {} /distanceToZone: {}".format(self.goal, self.encoder, self.DistanceToLow, self.zoneGoal, self.armPose, self.distanceToZone))
+                    # if (self.okZoneGoal == False or self.ok_goal == False):
+                        # print("goalX: {}/ mansoPose: {} /distanceToStart: {} /goalZone: {}/ armPose: {} /distanceToZone: {}".format(self.goal, self.encoder, self.DistanceToLow, self.zoneGoal, self.armPose, self.distanceToZone))
 
                         #print("goalZone: {}/ armPose: {} /distanceToZone: {}".format(self.zoneGoal, self.armPose, self.distanceToZone))
-                        if (self.DistanceToZone <= self.precisionArm):
-                            self.okZoneGoal = True
-                            print("arm position achieved")
-                        
-                        if (self.DistanceToLow <= self.distance_to_low):
-                            self.ok_goal = True
-                            print("goal position achieved")
+                    if (self.DistanceToZone <= self.precisionArm and not self.okZoneGoal):
+                        self.okZoneGoal = True
+                        print("El brazo esta en posicion")
+                    
+                    if (self.DistanceToLow <= self.distance_to_low and not self.ok_goal):
+                        self.ok_goal = True
+                        print("El brazo esta listo para accionar")
                     
                     if (self.okZoneGoal == False and self.ok_goal == True):
-                        print("goalZone: {}/ armPose: {} /distanceToZone: {}/ No se llego a la zona a tiempo".format(self.zoneGoal, self.armPose, self.distanceToZone))
+                        # print("goalZone: {}/ armPose: {} /distanceToZone: {}/ No se llego a la zona a tiempo".format(self.zoneGoal, self.armPose, self.distanceToZone))
+                        print("El brazo no llego a su posicion antes del objetivo")
                         self.ok_goal = False
                         self.okZoneGoal = False
                         self.execute = False
@@ -119,11 +121,11 @@ class patineta:
                             self.elements.pop(0)
 
                     if (self.okZoneGoal == True and self.ok_goal == True and self.stop_flag == False):
-                        print("ready to START")
-                        self.time = time.clock()
+                        print("Voy")
+                        self.time = time.perf_counter()
                         self.CommandArduino = True
                         self.pubArduino.publish(self.CommandArduino)
-                        print ("patineta ON")
+                        # print ("patineta ON")
                         self.ok_goal = False
                         self.okZoneGoal = False
                         self.execute = False
@@ -132,10 +134,11 @@ class patineta:
                             self.CommandArduino = False
                         if(len(self.elements) > 0):
                             self.elements.pop(0)
-                        print("end process")
+                        print("Listorta")
                     
                     if (abs(self.theta - self.pose.theta) > 1.57):
-                        print("goalZone: {}/ armPose: {} /distanceToZone: {}/ Nos pasamos segun angulo".format(self.zoneGoal, self.armPose, self.distanceToZone))
+                        # print("goalZone: {}/ armPose: {} /distanceToZone: {}/ Nos pasamos segun angulo".format(self.zoneGoal, self.armPose, self.distanceToZone))
+                        print("Nos pasamos segun angulo")
                         self.ok_goal = False
                         self.okZoneGoal = False
                         self.execute = False
@@ -156,8 +159,8 @@ class patineta:
     def armPose_callback(self, msg):
         self.armPose = msg.data 
     def points_callback(self, msg):
-        self.elements.append([msg.x, msg.y, msg.z])
-        rospy.loginfo(self.elements)
+        self.elements.append([msg.point.x, msg.point.y, msg.point.z])
+        rospy.loginfo("New Point")
 
 if __name__ == '__main__':
     try:
