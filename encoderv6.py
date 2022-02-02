@@ -6,7 +6,7 @@ import rospy
 import tf
 from nav_msgs.msg  import Odometry
 from std_msgs.msg  import Float64
-from geometry_msgs.msg import Twist, Point, Quaternion, Vector3, Pose
+from geometry_msgs.msg import Twist, Point, Quaternion, Vector3, Pose, PolygonStamped
 v_x = 0
 v_y = 0
 vth = 0
@@ -22,6 +22,25 @@ def callback(msg):
 rospy.init_node('odometry')
 rospy.Subscriber('wheel_encoders', Twist, callback)
 odom_pub = rospy.Publisher("odom", Odometry, queue_size=50)
+foot_pub = rospy.Publisher("footprint", PolygonStamped, queue_size=50)
+footprint = PolygonStamped()
+footprint.header.frame_id = "base_link"
+point0 = Point()
+point0.x = 1.655
+point0.y = 0.93
+point1 = Point()
+point1.x = -1.655
+point1.y = 0.93
+point2 = Point()
+point2.x = -1.655
+point2.y = -0.93
+point3 = Point()
+point3.x = 1.655
+point3.y = -0.93
+footprint.polygon.points.append(point0)
+footprint.polygon.points.append(point1)
+footprint.polygon.points.append(point2)
+footprint.polygon.points.append(point3)
 odom_broadcaster = tf.TransformBroadcaster()
 x = 0.0
 y = 0.0
@@ -61,6 +80,7 @@ while not rospy.is_shutdown():
     odom.twist.twist = Twist(Vector3(vx,vy,0), Vector3(0,0,vth))
 
     odom_pub.publish(odom)
+    foot_pub.publish(footprint)
 
     last_time = current_time
     r.sleep()

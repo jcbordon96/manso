@@ -7,7 +7,7 @@ from nav_msgs.msg import Odometry
 from std_msgs.msg import Int8
 from std_msgs.msg import Float32
 from std_msgs.msg import Bool
-from geometry_msgs.msg import Point, Pose2D
+from geometry_msgs.msg import Point, Pose2D, PointStamped
 import time 
 import tf
 
@@ -48,14 +48,15 @@ class patineta:
         self.zoneGoal = 0
         self.zone = 0
         self.okZoneGoal = False
-        self.precisionArm = 15
+        self.precisionArm = 30
+        self.id = 0
 
         #self.pub = rospy.Publisher("time", Float32, queue_size=10)
         self.pubArduino = rospy.Publisher("cvTool_cmd", Bool, queue_size=10)
         self.pubZoneGoal = rospy.Publisher("cvArm_cmd", Int8, queue_size=10)
         rospy.Subscriber('odom', Odometry, self.pose_callback)
         rospy.Subscriber('armPose', Float32, self.armPose_callback)
-        rospy.Subscriber('weed_points', Point, self.points_callback)
+        rospy.Subscriber('weed_points', PointStamped, self.points_callback)
 
         rospy.loginfo("Run polar arm has been started")
         rospy.loginfo(self.elements)
@@ -67,6 +68,7 @@ class patineta:
                 self.point.x = self.elements[0][0]
                 self.point.y = self.elements[0][1]
                 self.zone = self.elements[0][2]
+                self.current_id = self.elements[0][3]
                 if (self.zone == 1):
                     self.zoneGoal = 25
                 elif (self.zone == 2):
@@ -80,50 +82,53 @@ class patineta:
                         print(self.distance)
                         if (self.distance < self.distance_down):
                             self.elements.pop(0)
-                            print("punto filtrado")
+                            print("El punto estaba demasiado cerca, ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                         #if (self.execute == False):
                         else:
                             # self.goal = self.element
-                            self.pubZoneGoal.publish(self.zone)
-                            print (self.zone)
+                            print(self.zone)
+                            self.pubZoneGoal.publish(int(self.zone))
+
                             #self.elements.pop(0)
                             self.execute = True
-                            print("pase el punto a goal") 
+                            print("El punto paso a ejecucion, ID:{}, zona: {}".format(self.current_id, self.zone)) 
                     else:
                         self.elements.pop(0)
-                        print("punto filtrado")
+                        print("El punto quedo atras (THETA), ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                 #-------------------------- execute function --------------------------
                 else:
                     self.DistanceToLow = sqrt((self.point.x - self.pose.x) **2 + (self.point.y - self.pose.y) **2)
                     self.DistanceToZone = self.zoneGoal - self.armPose
 
-                    if (self.okZoneGoal == False or self.ok_goal == False):
-                        print("goalX: {}/ mansoPose: {} /distanceToStart: {} /goalZone: {}/ armPose: {} /distanceToZone: {}".format(self.goal, self.encoder, self.DistanceToLow, self.zoneGoal, self.armPose, self.distanceToZone))
+                    # if (self.okZoneGoal == False or self.ok_goal == False):
+                        # print("goalX: {}/ mansoPose: {} /distanceToStart: {} /goalZone: {}/ armPose: {} /distanceToZone: {}".format(self.goal, self.encoder, self.DistanceToLow, self.zoneGoal, self.armPose, self.distanceToZone))
 
                         #print("goalZone: {}/ armPose: {} /distanceToZone: {}".format(self.zoneGoal, self.armPose, self.distanceToZone))
-                        if (self.DistanceToZone <= self.precisionArm):
-                            self.okZoneGoal = True
-                            print("arm position achieved")
-                        
-                        if (self.DistanceToLow <= self.distance_to_low):
-                            self.ok_goal = True
-                            print("goal position achieved")
+                    if (self.DistanceToZone <= self.precisionArm and not self.okZoneGoal):
+                        self.okZoneGoal = True
+                        print("El brazo esta en posicion: {}, ID: {}".format(self.zone, self.current_id))
+                    
+                    if (self.DistanceToLow <= self.distance_to_low and not self.ok_goal):
+                        self.ok_goal = True
+                        print("El brazo esta listo para accionar, ID: ", self.current_id)
                     
                     if (self.okZoneGoal == False and self.ok_goal == True):
-                        print("goalZone: {}/ armPose: {} /distanceToZone: {}/ No se llego a la zona a tiempo".format(self.zoneGoal, self.armPose, self.distanceToZone))
+                        # print("goalZone: {}/ armPose: {} /distanceToZone: {}/ No se llego a la zona a tiempo".format(self.zoneGoal, self.armPose, self.distanceToZone))
+                        if(len(self.elements) > 0):
+                            self.elements.pop(0)
+                        print("El brazo no llego a su posicion antes del objetivo, ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                         self.ok_goal = False
                         self.okZoneGoal = False
                         self.execute = False
                         self.wait = False
-                        if(len(self.elements) > 0):
-                            self.elements.pop(0)
+                        
 
                     if (self.okZoneGoal == True and self.ok_goal == True and self.stop_flag == False):
-                        print("ready to START")
-                        self.time = time.clock()
+                        print("Voy, ID: ", self.current_id)
+                        self.time = time.perf_counter()
                         self.CommandArduino = True
                         self.pubArduino.publish(self.CommandArduino)
-                        print ("patineta ON")
+                        # print ("patineta ON")
                         self.ok_goal = False
                         self.okZoneGoal = False
                         self.execute = False
@@ -132,16 +137,18 @@ class patineta:
                             self.CommandArduino = False
                         if(len(self.elements) > 0):
                             self.elements.pop(0)
-                        print("end process")
+                        print("Listorta, ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                     
                     if (abs(self.theta - self.pose.theta) > 1.57):
-                        print("goalZone: {}/ armPose: {} /distanceToZone: {}/ Nos pasamos segun angulo".format(self.zoneGoal, self.armPose, self.distanceToZone))
+                        # print("goalZone: {}/ armPose: {} /distanceToZone: {}/ Nos pasamos segun angulo".format(self.zoneGoal, self.armPose, self.distanceToZone))
+                        if(len(self.elements) > 0):
+                            self.elements.pop(0)
+                        print("Nos pasamos segun angulo, ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                         self.ok_goal = False
                         self.okZoneGoal = False
                         self.execute = False
                         self.wait = False
-                        if(len(self.elements) > 0):
-                            self.elements.pop(0)
+                     
 
 
                 #else:
@@ -156,8 +163,10 @@ class patineta:
     def armPose_callback(self, msg):
         self.armPose = msg.data 
     def points_callback(self, msg):
-        self.elements.append([msg.x, msg.y, msg.z])
-        rospy.loginfo(self.elements)
+        self.elements.append([msg.point.x, msg.point.y, msg.point.z, self.id])
+        print("Nuevo punto con el ID: ", self.id)
+        self.id += 1
+        
 
 if __name__ == '__main__':
     try:
