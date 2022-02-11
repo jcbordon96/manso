@@ -123,7 +123,7 @@ class WeedTracker:
                 self.weed = "N"
             # print("There is a plant :", self.weed)
             self.distance = math.sqrt((self.pose.x - self.last_pose.x) **2 + (self.pose.y - self.last_pose.y) **2)
-            print(self.distance)
+            # print(self.distance)
             if self.distance > self.distance_to_take_pic:
                 self.take_pic = True
                 print("Voy a sacar una foto")
@@ -143,24 +143,25 @@ class WeedTracker:
         for i in range(len(t.tracked_objects)):
             
             if(objects < t.tracked_objects[i]._id):
-                print("Punto")
+                print("Punto Nuevo")
                 objects = t.tracked_objects[i]._id
                 # pointX = (t.tracked_objects[i].last_point[0]*640) /175
                 pointX = t.tracked_objects[i].last_point[0]
                 # print(pointX)
                 # print("pixel:" + str (t.tracked_objects[i].last_point[0]))
+                if (pointX > 150 and pointX < 490):
+                    if(pointX > 150 and pointX < 263 ):
+                        print("1")
+                        self.point.point.z = 1
+                    elif(pointX > 263 and pointX < 375 ):
+                        print("2")
+                        self.point.point.z = 2
+                    elif(pointX > 375 and pointX < 490 ):
+                        print("3")
+                        self.point.point.z = 3
+                    self.pub_points.publish(self.point)
+                # print(self.point)
                 
-                if(pointX > 150 and pointX < 263 ):
-                    print("1")
-                    self.point.point.z = 1
-                elif(pointX > 263 and pointX < 375 ):
-                    print("2")
-                    self.point.point.z = 2
-                elif(pointX > 375 and pointX < 490 ):
-                    print("3")
-                    self.point.point.z = 3
-                print(self.point)
-                self.pub_points.publish(self.point)
             #cv2.circle(t.debug_frame, t.tracked_objects[i].last_point, 5, [255,255,255], 3)  
         
         res = cv2.resize(t.debug_frame, (640,480))

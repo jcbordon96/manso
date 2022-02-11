@@ -32,7 +32,7 @@ const int ONOFF_LB = 4;                      //K2:
 const int CWCCW_LB = 25;
 float auxiliar;
 
-float new_cmd_vel_timer = 0.0;
+unsigned long new_cmd_vel_timer = 0.0;
 bool OnOff = false;
 float Hz = 0.0;
 int CWCCW_R = 1;
@@ -82,6 +82,7 @@ void OnOff_Cb(const std_msgs::Bool& ONOFF){
   OnOff = ONOFF.data;
 }
 void messageCb(const geometry_msgs::Twist& msg){     //vector velocidad
+  new_cmd_vel_timer = millis();
   pwmFR = msg.linear.x;
   pwmFL = msg.linear.y;
   pwmBR = msg.linear.z;
@@ -172,6 +173,13 @@ void setup(){
   SetupFVD();
 }
 void loop(){
+  if(millis() - new_cmd_vel_timer > 1000){// Hombre a tierra, seguro por desconexion
+    motorGo_FVD(0, DIR_RF, 0);
+    motorGo_FVD(1, DIR_LF, 0); 
+    motorGo_FVD(2, DIR_RB, 0);
+    motorGo_FVD(3, DIR_LB, 0);
+    nh.spinOnce();
+  }
   if ((millis()-timer) > 100 && stop_req == false){
     if (OnOff == true){
       digitalWrite (ONOFF_RF, LOW);
@@ -256,7 +264,7 @@ void motorGoDIR (){
       CWCCW_L = 1;
       DIR_LB = 2;
     }
-    DIR_LB = DIR_RB;
+    DIR_LB = DIR_LF;
   //}
   /*else if (DIR_R == 0 || DIR_L == 0){
     DIR_RF = 0;

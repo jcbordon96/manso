@@ -113,6 +113,7 @@ long _ArmYEncoderTicks_aux = 0;
 volatile double arm_pose = 0;
 const int ARM_RIGHT = 2;
 const int ARM_LEFT = 1;
+bool first_req_tool = true;
 
 #define c_StopInterrupt A8
 
@@ -123,7 +124,7 @@ unsigned long timer_encoder = 0;
 unsigned long delta_timer = 0;
 unsigned long pub_pose_timer = 0;
 unsigned long timeout_stuck_timer = 0;
-unsigned int timeout_stuck = 500;
+unsigned int timeout_stuck = 1000;
 bool is_stuck = false;
 bool to_zero = false;
 bool warn_stuck = false;
@@ -166,6 +167,7 @@ PID LBPID(&InputLB, &OutputLB, &SetpointLB, aggKp, aggKi, aggKd, DIRECT);
 volatile bool arm_is_left = false;
 volatile bool arm_is_right = false;
 volatile bool tool_is_ok = false;
+volatile bool change_tool_status = false;
 //TOOL: Patin
 bool stop_flag = false;
 int DIR = 1;
@@ -181,19 +183,19 @@ bool firstsetup = false;
 int pwm_arm = 100;
 int pwm_tool = 0;
 float distanceToZone = 0;
-const float precision = 15;//0.05;
+const int precision = 20;//0.05;
 bool right_to_left = false;
 bool startTool = false;
 int countRev = 0;
 unsigned long timerTool = 0;
 bool manual_cmd = false;
-bool move_is_ok = false;
+bool move_is_ok = true;
 int i = 0;
 bool reset = false;
 int cmd_flag = 0;
-const float middle = 89;//0.1;
-const float left = 25;//0.1;
-const float right = 151;//0.1;
+const int middle = 89;//0.1;
+const int left = 15;//0.1;
+const int right = 162;//0.1;
 unsigned long timeZone = 0;
 unsigned long timerZone = 2500;
 bool timerZoneGoal = false;
@@ -224,6 +226,9 @@ void messageCb(const geometry_msgs::Twist& msg){
   auxiliar = msg.linear.x;
   double z = msg.angular.z;
   new_cmd_vel_timer = millis();
+  if(abs(z)> 0.05){
+    z = (z/abs(z))*0.05;
+  }
 
   if( is_stuck ){
     rps_req_RF = 0;
@@ -255,7 +260,7 @@ void manualCb(const std_msgs::Bool& msg){
   manual_cmd = msg.data;
 }
 void cvArm_Cb(const std_msgs::Int8& msg) {
-    double y =msg.data;
+    double y = msg.data;
     stop_flag = false;
     if(y == 1){
       cmd_flag = 1;
@@ -276,6 +281,7 @@ void cvArm_Cb(const std_msgs::Int8& msg) {
 }
 void cvTool_Cb(const std_msgs::Int8& msg) {
     startTool = msg.data;
+    first_req_tool = msg.data;
     stop_flag = false;
 }
 
@@ -408,7 +414,7 @@ void setup(){
   SetpointFollower = 320;
 }
 void loop(){
-  PubArmPose();
+  nh.spinOnce();
   if(millis() - new_cmd_vel_timer > 1000){// Hombre a tierra, seguro por desconexion
     rps_req_RF = 0;           
     rps_req_LF = 0;
@@ -416,8 +422,20 @@ void loop(){
     rps_req_LB = 0;
     nh.spinOnce();
   }
+  if(stop_req == false){
+    if(startTool == true){
+      armDiagnostics.data = "Recibi request de mover el brazo";
+      armDiagnostics_pub.publish( &armDiagnostics );
+      tool();
+      //cmd_flag = 0;
+    }
+    if (cmd_flag == -1){
+      motorGo(0,0,0);
+      startTool == false;
+    }
+  }
   if ((millis()-timer) > 100){
-    nh.spinOnce();
+
     PubArmPose();
     motorGoDIR();
     encoderMotor(RFMotor);
@@ -429,6 +447,7 @@ void loop(){
     encoderPub();
     // veloPub();
     if(stop_req == false){
+
 
       rps_req_RF_cmd = rps_req_RF;
       rps_req_LF_cmd = rps_req_LF;
@@ -444,12 +463,12 @@ void loop(){
       * TOOL: PATIN
       */
       //PubArmPose();
-      endStopRight.data = arm_is_right;
+      /*endStopRight.data = arm_is_right;
       endstopRight_pub.publish ( &endStopRight );
       endStopLeft.data = arm_is_left;
       endstopLeft_pub.publish ( &endStopLeft );
       endStopTool.data = tool_is_ok;
-      endstopTool_pub.publish ( &endStopTool );
+      endstopTool_pub.publish ( &endStopTool );*/
       if(arm_is_left == true){
         _ArmYEncoderTicks =  0;
         pwm_tool = 2;
@@ -460,17 +479,20 @@ void loop(){
       }
       CV();
     //armCommand();
-    stop_req = digitalRead(c_StopInterrupt);
-    hard_stop = digitalRead(c_StopInterrupt);
-    emergency_stop.data = stop_req;
-    emergency_stop_status_pub.publish( &emergency_stop);
-    nh.spinOnce();
+      stop_req = digitalRead(c_StopInterrupt);
+      hard_stop = digitalRead(c_StopInterrupt);
+      emergency_stop.data = stop_req;
+      emergency_stop_status_pub.publish( &emergency_stop);
+      nh.spinOnce();
     }
     else{
       stop_req = digitalRead(c_StopInterrupt);
       hard_stop = digitalRead(c_StopInterrupt);
       emergency_stop.data = stop_req;
       emergency_stop_status_pub.publish( &emergency_stop);
+      if(stop_req){
+        startTool = false;
+      }
     }
   
   }
@@ -667,13 +689,12 @@ void pwmPub(){
 void PubArmPose(){
   armPose.data = _ArmYEncoderTicks;//(_ArmYEncoderTicks/2400.0)*(2*3.1416)*LenghtArm;
   armPose_pub.publish(&armPose);
-  nh.spinOnce();
 }
 void armSetup(){
   while(arm_is_left == false && stop_flag == false){
     if(millis()- timer > 100){
       timer = millis();
-      motorGo(0, ARM_LEFT, 150);
+      motorGo(0, ARM_LEFT, 100);
       armDiagnostics.data =  " Setting Arm...";
       armDiagnostics_pub.publish( &armDiagnostics );
       nh.spinOnce();
@@ -699,45 +720,45 @@ void armSetup(){
   nh.spinOnce();
   firstEndStopLeft = true;
 }
-void armCommand(){
-  //Mover a la izquierda
-  if(cmd_flag == 1){
-    pwm_tool = 1;
-    while(arm_is_left == false && pwm_tool == 1 && stop_flag == false){ 
-      motorGo(0, pwm_tool, 150);
-      PubArmPose();
-    }
-  motorGo(0,0,0);
-  cmd_flag = 0;
-  }
-  //Mover al medio
-  if(cmd_flag == 2){
-    move_is_ok = false;
-    while(move_is_ok == false && stop_flag == false){
-      MoveArm(middle);
-      PubArmPose();
-    }
-    cmd_flag = 0;
-  }
-  //Mover a la derecha
-  if(cmd_flag == 3){
-    pwm_tool = 2;
-    while(arm_is_right == false && pwm_tool == 2 && stop_flag == false){ 
-      motorGo(0, pwm_tool, 150);
-      PubArmPose();
-    }
-    motorGo(0,0,0);
-    cmd_flag = 0;
-  }
-  //Accionar el sacayuyo
-  if(cmd_flag == 4){
-    tool();
-    cmd_flag = 0;
-  }
-  if (cmd_flag == 0){
-    motorGo(0,0,0);
-  }
-}
+// void armCommand(){
+//   //Mover a la izquierda
+//   if(cmd_flag == 1){
+//     pwm_tool = 1;
+//     while(arm_is_left == false && pwm_tool == 1 && stop_flag == false){ 
+//       motorGo(0, pwm_tool, 150);
+//       PubArmPose();
+//     }
+//   motorGo(0,0,0);
+//   cmd_flag = 0;
+//   }
+//   //Mover al medio
+//   if(cmd_flag == 2){
+//     move_is_ok = false;
+//     while(move_is_ok == false && stop_flag == false){
+//       MoveArm(middle);
+//       PubArmPose();
+//     }
+//     cmd_flag = 0;
+//   }
+//   //Mover a la derecha
+//   if(cmd_flag == 3){
+//     pwm_tool = 2;
+//     while(arm_is_right == false && pwm_tool == 2 && stop_flag == false){ 
+//       motorGo(0, pwm_tool, 150);
+//       PubArmPose();
+//     }
+//     motorGo(0,0,0);
+//     cmd_flag = 0;
+//   }
+//   //Accionar el sacayuyo
+//   if(cmd_flag == 4){
+//     tool();
+//     cmd_flag = 0;
+//   }
+//   if (cmd_flag == 0){
+//     motorGo(0,0,0);
+//   }
+// }
 void CV(){
   //Mover a la izquierda
   if(cmd_flag == 1){
@@ -767,9 +788,10 @@ void CV(){
   }
   //Mover a la derecha
   if(cmd_flag == 3){
-    move_is_ok = false;
+
     pwm_tool = 2;
-    if(arm_is_right == false && pwm_tool == 2 && stop_flag == false){ 
+    if(arm_is_right == false && pwm_tool == 2 && stop_flag == false ){ 
+      move_is_ok = false;
       if(move_is_ok == false && stop_flag == false){
         MoveArm(right);
         //PubArmPose();
@@ -779,17 +801,10 @@ void CV(){
     //cmd_flag = 0;
   }
   //Accionar el sacayuyo
-  if(startTool == true){
-    tool();
-    //cmd_flag = 0;
-  }
-  if (cmd_flag == -1){
-    motorGo(0,0,0);
-    startTool == false;
-  }
+
 }
 void MoveArm(int ticks){
-  motorGo(1, 0, 0);
+  
   if (timerClock == false){
     arm_pose = _ArmYEncoderTicks;//(_ArmYEncoderTicks/2400.0)*(2*3.1416)*LenghtArm;
     distanceToZone = ticks - arm_pose;
@@ -797,7 +812,7 @@ void MoveArm(int ticks){
     distanceToZone_pub.publish( &distancetozone );
     if(abs(distanceToZone) <= precision){
       motorGo(0, ARM_RIGHT, 0);
-      timerClock = true;
+      //timerClock = true;
       timeZone = millis();
       move_is_ok = true;
     }
@@ -818,55 +833,78 @@ void MoveArm(int ticks){
     //DIRmotorGo();
     //motorGo(0, DIR, 80);
   }
-  if (timerClock == true){
-    nh.spinOnce();
-    Timer.data = millis() - timeZone;
-    //timer_pub.publish( &Timer );
-    if ( millis() - timeZone < timerZone ){
-      armDiagnostics.data = "Arm in Position";
-      armDiagnostics_pub.publish( &armDiagnostics );
-      //startTool = true;
-    }
-    if ( millis() - timeZone > timerZone ){
-      armDiagnostics.data = "timer end, move to next goal";
-      armDiagnostics_pub.publish( &armDiagnostics );
-      okGoal_1 = true;
-      timerClock = false;
-      //startTool = true;
-    }
-  }
-  nh.spinOnce();
+  // if (timerClock == true){
+  //   nh.spinOnce();
+  //   Timer.data = millis() - timeZone;
+  //   //timer_pub.publish( &Timer );
+  //   if ( millis() - timeZone < timerZone ){
+  //     armDiagnostics.data = "Arm in Position";
+  //     armDiagnostics_pub.publish( &armDiagnostics );
+  //     //startTool = true;
+  //   }
+  //   if ( millis() - timeZone > timerZone ){
+  //     armDiagnostics.data = "timer end, move to next goal";
+  //     armDiagnostics_pub.publish( &armDiagnostics );
+  //     okGoal_1 = true;
+  //     timerClock = false;
+  //     //startTool = true;
+  //   }
+  // }
+
 }  
 void tool(){
-  if(startTool == true){
-    motorGo(0, 0, 0);
-    while (tool_is_ok == true){
-      armDiagnostics.data = " patin ON 1";
-      armDiagnostics_pub.publish ( &armDiagnostics );
+  if(true){
+    if (first_req_tool == true){
+      first_req_tool = false;
       motorGo(1, ARM_LEFT, 254);
-      PubArmPose();
+      change_tool_status = false;
+  
     }
-    while (tool_is_ok == false){
-      motorGo(1, ARM_LEFT, 254);
-      armDiagnostics.data = " patin ON 2";
-      armDiagnostics_pub.publish ( &armDiagnostics );
-      PubArmPose();
-      //startTool = false;
-      PubArmPose();
+    else if (tool_is_ok == true && change_tool_status == true){
+      delay(25);
+      //armDiagnostics.data = " Me quedo aca";
+      //armDiagnostics_pub.publish ( &armDiagnostics );
+      if (!digitalRead(c_ToolEndStopInterrupt)){
+        motorGo(1, ARM_LEFT, 0);
+        first_req_tool = true;
+        startTool = false;
+      }
+      if (digitalRead(c_ToolEndStopInterrupt)){
+        motorGo(1, ARM_LEFT, 254);
+        first_req_tool = false;
+        startTool = true;
+      }
     }
-    if (tool_is_ok == true){
-      motorGo(1, ARM_LEFT, 0);
-      armDiagnostics.data = " patin OFF";
-      armDiagnostics_pub.publish ( &armDiagnostics );
-      PubArmPose();
-    }
-  /*while (millis() - timerTool < 2000){
-    armDiagnostics.data = " timer";
-    armDiagnostics_pub.publish ( &armDiagnostics );
-    nh.spinOnce();
-  }*/
-  startTool = false;
+    
   }
+  else{
+    motorGo(1, 0, 0);
+  }
+  
+  // while (tool_is_ok == true){
+  //   // armDiagnostics.data = " patin ON 1";
+  //   // armDiagnostics_pub.publish ( &armDiagnostics );
+  //   motorGo(1, ARM_LEFT, 254);
+  // }
+  // while (tool_is_ok == false){
+  //   motorGo(1, ARM_LEFT, 254);
+  //   // armDiagnostics.data = " patin ON 2";
+  //   // armDiagnostics_pub.publish ( &armDiagnostics );
+
+  // }
+  // if (tool_is_ok == true){
+  //   motorGo(1, ARM_LEFT, 0);
+  //   armDiagnostics.data = " patin OFF";
+  //   armDiagnostics_pub.publish ( &armDiagnostics );
+
+  // }
+/*while (millis() - timerTool < 2000){
+  armDiagnostics.data = " timer";
+  armDiagnostics_pub.publish ( &armDiagnostics );
+  nh.spinOnce();
+}*/
+
+  
 }
 void DIRmotorGo(){
   if(distanceToZone > 0){
@@ -1089,12 +1127,15 @@ int ArmYParseEncoder(){
 }
 void HandleToolEndStopInterrupt(){
   tool_is_ok = !digitalRead(c_ToolEndStopInterrupt);
+  change_tool_status = true;
+  
 }
 void HandleRightEndStopInterrupt(){
   arm_is_right = !digitalRead(c_RightEndStopInterrupt);
   if(arm_is_right == true){
     motorGo(0, ARM_LEFT, 0);
   }
+  
 }
 void HandleLeftEndStopInterrupt(){
   arm_is_left = !digitalRead(c_LeftEndStopInterrupt);

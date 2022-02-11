@@ -49,6 +49,7 @@ class patineta:
         self.zone = 0
         self.okZoneGoal = False
         self.precisionArm = 30
+        self.id = 0
 
         #self.pub = rospy.Publisher("time", Float32, queue_size=10)
         self.pubArduino = rospy.Publisher("cvTool_cmd", Bool, queue_size=10)
@@ -67,12 +68,13 @@ class patineta:
                 self.point.x = self.elements[0][0]
                 self.point.y = self.elements[0][1]
                 self.zone = self.elements[0][2]
-                if (self.zone == 1):
-                    self.zoneGoal = 25
-                elif (self.zone == 2):
-                    self.zoneGoal = 89
-                elif (self.zone == 3):
-                    self.zoneGoal = 151
+                self.current_id = self.elements[0][3]
+                # if (self.zone == 1):
+                #     self.zoneGoal = 25
+                # elif (self.zone == 2):
+                #     self.zoneGoal = 89
+                # elif (self.zone == 3):
+                #     self.zoneGoal = 151
                 self.distance = sqrt((self.point.x - self.pose.x) **2 + (self.point.y - self.pose.y) **2)
                 self.theta = atan2((self.point.y - self.pose.y), (self.point.x - self.pose.x))
                 if  not self.execute:
@@ -80,7 +82,7 @@ class patineta:
                         print(self.distance)
                         if (self.distance < self.distance_down):
                             self.elements.pop(0)
-                            print("El punto estaba demasiado cerca")
+                            print("El punto estaba demasiado cerca, ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                         #if (self.execute == False):
                         else:
                             # self.goal = self.element
@@ -89,10 +91,10 @@ class patineta:
 
                             #self.elements.pop(0)
                             self.execute = True
-                            print("El punto paso a ejecucion") 
+                            print("El punto paso a ejecucion, ID:{}, zona: {}".format(self.current_id, self.zone)) 
                     else:
                         self.elements.pop(0)
-                        print("El punto quedo atras (THETA)")
+                        print("El punto quedo atras (THETA), ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                 #-------------------------- execute function --------------------------
                 else:
                     self.DistanceToLow = sqrt((self.point.x - self.pose.x) **2 + (self.point.y - self.pose.y) **2)
@@ -104,24 +106,25 @@ class patineta:
                         #print("goalZone: {}/ armPose: {} /distanceToZone: {}".format(self.zoneGoal, self.armPose, self.distanceToZone))
                     if (self.DistanceToZone <= self.precisionArm and not self.okZoneGoal):
                         self.okZoneGoal = True
-                        print("El brazo esta en posicion")
+                        print("El brazo esta en posicion: {}, ID: {}".format(self.zone, self.current_id))
                     
                     if (self.DistanceToLow <= self.distance_to_low and not self.ok_goal):
                         self.ok_goal = True
-                        print("El brazo esta listo para accionar")
+                        print("El brazo esta listo para accionar, ID: ", self.current_id)
                     
                     if (self.okZoneGoal == False and self.ok_goal == True):
                         # print("goalZone: {}/ armPose: {} /distanceToZone: {}/ No se llego a la zona a tiempo".format(self.zoneGoal, self.armPose, self.distanceToZone))
-                        print("El brazo no llego a su posicion antes del objetivo")
+                        if(len(self.elements) > 0):
+                            self.elements.pop(0)
+                        print("El brazo no llego a su posicion antes del objetivo, ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                         self.ok_goal = False
                         self.okZoneGoal = False
                         self.execute = False
                         self.wait = False
-                        if(len(self.elements) > 0):
-                            self.elements.pop(0)
+                        
 
                     if (self.okZoneGoal == True and self.ok_goal == True and self.stop_flag == False):
-                        print("Voy")
+                        print("Voy, ID: ", self.current_id)
                         self.time = time.perf_counter()
                         self.CommandArduino = True
                         self.pubArduino.publish(self.CommandArduino)
@@ -134,17 +137,18 @@ class patineta:
                             self.CommandArduino = False
                         if(len(self.elements) > 0):
                             self.elements.pop(0)
-                        print("Listorta")
+                        print("Listorta, ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                     
                     if (abs(self.theta - self.pose.theta) > 1.57):
                         # print("goalZone: {}/ armPose: {} /distanceToZone: {}/ Nos pasamos segun angulo".format(self.zoneGoal, self.armPose, self.distanceToZone))
-                        print("Nos pasamos segun angulo")
+                        if(len(self.elements) > 0):
+                            self.elements.pop(0)
+                        print("Nos pasamos segun angulo, ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                         self.ok_goal = False
                         self.okZoneGoal = False
                         self.execute = False
                         self.wait = False
-                        if(len(self.elements) > 0):
-                            self.elements.pop(0)
+                     
 
 
                 #else:
@@ -159,8 +163,10 @@ class patineta:
     def armPose_callback(self, msg):
         self.armPose = msg.data 
     def points_callback(self, msg):
-        self.elements.append([msg.point.x, msg.point.y, msg.point.z])
-        rospy.loginfo("New Point")
+        self.elements.append([msg.point.x, msg.point.y, msg.point.z, self.id])
+        print("Nuevo punto con el ID: ", self.id)
+        self.id += 1
+        
 
 if __name__ == '__main__':
     try:
