@@ -9,17 +9,22 @@ import cv2
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Int16
 import os
+import math
 
 class Follower:
     msg = Twist()
-    angular = 0.05
-    linear = 0.25
+    max_angular = 0.05
+    max_linear = 0.25
+    min_angular = 0.01
+    min_linear = 0.1
     request = True
     vois = Int16()
     def __init__(self):
-        os.system('v4l2-ctl -d /dev/FOLLOWER -c exposure_auto=1')
-        os.system('v4l2-ctl -d /dev/FOLLOWER -c white_balance_temperature_auto=0')
-        os.system('v4l2-ctl -d /dev/FOLLOWER -c white_balance_temperature=4500')
+        os.system('v4l2-ctl -d /dev/video2 -c exposure_auto=1')
+        os.system('v4l2-ctl -d /dev/video2 -c white_balance_temperature_auto=0')
+        os.system('v4l2-ctl -d /dev/video2 -c white_balance_temperature=4500')
+        os.system('v4l2-ctl -d /dev/video2 -c focus_auto=0')
+        os.system('v4l2-ctl -d /dev/video2 -c focus_absolute=12')
         self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
         rospy.Subscriber('follower_request', Bool, self.follower_request_callback)
         
@@ -59,7 +64,7 @@ class Follower:
                 #green_lower = np.array([25, 52, 72], np.uint8
                 #)
                 #green_upper = np.array([102, 255, 255], np.uint8)
-                green_mask = cv2.inRange(hsvFrame, red_lower, red_upper)
+                mask = cv2.inRange(hsvFrame, red_lower, red_upper)
             
                 
                 # Morphological Transform, Dilation
@@ -69,32 +74,60 @@ class Follower:
                 kernal = np.ones((5, 5), "uint8")
                 
                 # For blue color
-                green_mask = cv2.dilate(green_mask, kernal)
-                res_green = cv2.bitwise_and(imageFrame, imageFrame, 
-                                        mask = green_mask)
+                mask = cv2.dilate(mask, kernal)
                 
                 # Creating contour to track blue color
-                contours, hierarchy = cv2.findContours(green_mask,
+                contours, hierarchy = cv2.findContours(mask,
                                                     cv2.RETR_TREE,
                                                     cv2.CHAIN_APPROX_SIMPLE)
                 
                 for pic, contour in enumerate(contours):
                     area = cv2.contourArea(contour)
-                    if(area > 12000):
-                        print(area)
+                    if(area > 15000):
                         flagStop = False
-                        flagChangeExposure = False
+                        if(flagChangeExposure):
+                            os.system('v4l2-ctl -d /dev/video2 -c exposure_absolute={}'.format(exposureValue+5))
+                            flagChangeExposure = False
                         framesEmpty = 0
-                        peri = cv2.arcLength(contour, True)
-                        approx = cv2.approxPolyDP(contour, 0.02 * peri, True)
                         cv2.drawContours(imageFrame, contour, -1, (255,0,255), 1)
                         x, y, w, h = cv2.boundingRect(contour)
+                        M = cv2.moments(contour)
+                        cx = int(M['m10']/M['m00'])
+                        cy = int(M['m01']/M['m00'])
+                        cv2.circle(imageFrame, (cx,cy), 10, (255,255,255), cv2.FILLED)
+            
+
                         if(x > 225 and x+w < 415):
                             cv2.rectangle(imageFrame, (x,y), (x+w, y+h), (0,255,0), 3)
                         else:
                             cv2.rectangle(imageFrame, (x,y), (x+w, y+h), (0,0,255), 3)
+                        height,width = mask.shape
+                        skel = np.zeros([height,width],dtype=np.uint8)      #[height,width,3]
+                        kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (3,3))
+                        while(np.count_nonzero(mask) != 0 ):
+                            eroded = cv2.erode(mask,kernel)
+                            # cv2.imshow("eroded",eroded)   
+                            temp = cv2.dilate(eroded,kernel)
+                            # cv2.imshow("dilate",temp)
+                            temp = cv2.subtract(mask,temp)
+                            skel = cv2.bitwise_or(skel,temp)
+                            mask = eroded.copy()
+                        
+                        # cv2.imshow("skel",skel)
+                        edges = cv2.Canny(skel, 50, 150)
+                        # cv2.imshow("edges",edges)
+                        lines = cv2.HoughLinesP(edges,1,np.pi/180,40,minLineLength=30,maxLineGap=30)
+                        i = 0
+                        for x1,y1,x2,y2 in lines[0]:
+                            i+=1
+                            cv2.line(imageFrame,(x1,y1),(x2,y2),(0,255,0),2)
+                            dx = x1 - x2
+                            dy = y1 - y2 
+                            angle = math.atan((dx/dy))
+                            angle = round((angle/(2*math.pi))*360,2)
+                            # 3cv2.putText(imageFrame, "{}".format(angle), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA, False)
                 
-                        self.pubCorrection(x+(w/2))
+                        self.pubCorrection(cx,angle)
 
                         #print(area)
                         #print(len(approx))
@@ -139,7 +172,7 @@ class Follower:
             self.msg.linear.x = 0.0
             self.msg.angular.z = 0.0
             self.pub.publish(self.msg)
-    def pubCorrection(self, value):
+    def pubCorrection(self, value, angle):
             if self.request == True:
                 # if(self.status != value):
                 #     print(value)
@@ -150,18 +183,18 @@ class Follower:
                     self.vois.data = -1
                     self.voice_pub.publish(self.vois)
                 elif value < 220:
-                    self.msg.linear.x = self.linear * (value/220)
-                    self.msg.angular.z = self.angular - self.angular * (value/220)
+                    self.msg.linear.x = self.min_linear + (self.max_linear - self.min_linear) * (value/220)
+                    self.msg.angular.z = self.max_angular - self.max_angular * (value/220)
                     self.vois.data = 1
                     self.voice_pub.publish(self.vois)
                 elif value > 420:
-                    self.msg.linear.x = self.linear - self.linear * ((value - 420)/220)
-                    self.msg.angular.z = - self.angular * ((value - 420)/220)
+                    self.msg.linear.x = self.max_linear - self.min_linear - (self.max_linear - self.min_linear) * ((value - 420)/220)
+                    self.msg.angular.z = - self.max_angular * ((value - 420)/220)
                     self.vois.data = 2
                     self.voice_pub.publish(self.vois)
                 else: 
-                    self.msg.linear.x = self.linear
-                    self.msg.angular.z = 0
+                    self.msg.linear.x = self.max_linear
+                    self.msg.angular.z = (angle / 15.0) * self.max_angular
                     self.vois.data = 0
                     self.voice_pub.publish(self.vois)
                         
