@@ -8,6 +8,7 @@ from std_msgs.msg import Int8
 from std_msgs.msg import Float32
 from std_msgs.msg import Bool
 from geometry_msgs.msg import Point, Pose2D, PointStamped
+from visualization_msgs.msg import Marker
 import time 
 import tf
 
@@ -15,6 +16,9 @@ class patineta:
     def __init__(self):
         self.rate = rospy.Rate(10) #hz
         self.elements = []
+        self.ok_elements = []
+        self.failed_elements = []
+        
         self.point = 0.0
         self.time = 0.0
         self.goal = 0.0
@@ -81,7 +85,7 @@ class patineta:
                     if (abs(self.theta - self.pose.theta) < 1.57):
                         print(self.distance)
                         if (self.distance < self.distance_down):
-                            self.elements.pop(0)
+                            self.failed_elements.append(self.elements.pop(0))
                             print("El punto estaba demasiado cerca, ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                         #if (self.execute == False):
                         else:
@@ -93,7 +97,7 @@ class patineta:
                             self.execute = True
                             print("El punto paso a ejecucion, ID:{}, zona: {}".format(self.current_id, self.zone)) 
                     else:
-                        self.elements.pop(0)
+                        self.failed_elements.append(self.elements.pop(0))
                         print("El punto quedo atras (THETA), ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                 #-------------------------- execute function --------------------------
                 else:
@@ -115,7 +119,7 @@ class patineta:
                     if (self.okZoneGoal == False and self.ok_goal == True):
                         # print("goalZone: {}/ armPose: {} /distanceToZone: {}/ No se llego a la zona a tiempo".format(self.zoneGoal, self.armPose, self.distanceToZone))
                         if(len(self.elements) > 0):
-                            self.elements.pop(0)
+                            self.failed_elements.append(self.elements.pop(0))
                         print("El brazo no llego a su posicion antes del objetivo, ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                         self.ok_goal = False
                         self.okZoneGoal = False
@@ -136,13 +140,13 @@ class patineta:
                         if(self.CommandArduino == True):
                             self.CommandArduino = False
                         if(len(self.elements) > 0):
-                            self.elements.pop(0)
+                            self.ok_elements.append(self.elements.pop(0))
                         print("Listorta, ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                     
                     if (abs(self.theta - self.pose.theta) > 1.57):
                         # print("goalZone: {}/ armPose: {} /distanceToZone: {}/ Nos pasamos segun angulo".format(self.zoneGoal, self.armPose, self.distanceToZone))
                         if(len(self.elements) > 0):
-                            self.elements.pop(0)
+                            self.failed_elements.append(self.elements.pop(0))
                         print("Nos pasamos segun angulo, ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                         self.ok_goal = False
                         self.okZoneGoal = False
