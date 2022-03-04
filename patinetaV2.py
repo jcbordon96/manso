@@ -37,7 +37,7 @@ class patineta:
         self.ok_goal = False
         self.stop_flag = False
         self.distance_to_low = 0.05
-        self.distance_down = 0.15
+        self.distance_down = 0.1
 
 
         self.CommandArduino = False
@@ -99,7 +99,7 @@ class patineta:
                 else:
                     self.DistanceToLow = sqrt((self.point.x - self.pose.x) **2 + (self.point.y - self.pose.y) **2)
                     self.DistanceToZone = self.zoneGoal - self.armPose
-
+                    print("point: {}, pose: {}, distance: {}".format(self.point.x, self.pose.x, self.DistanceToLow))
                     # if (self.okZoneGoal == False or self.ok_goal == False):
                         # print("goalX: {}/ mansoPose: {} /distanceToStart: {} /goalZone: {}/ armPose: {} /distanceToZone: {}".format(self.goal, self.encoder, self.DistanceToLow, self.zoneGoal, self.armPose, self.distanceToZone))
 

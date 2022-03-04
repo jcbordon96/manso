@@ -114,6 +114,7 @@ volatile double arm_pose = 0;
 const int ARM_RIGHT = 2;
 const int ARM_LEFT = 1;
 bool first_req_tool = true;
+bool second_req_tool = true;
 
 #define c_StopInterrupt A8
 
@@ -135,6 +136,7 @@ volatile bool hard_stop = false;
 float rps_limit = 0.25;
 bool accel_control = true;
 int sum_error = 0;
+bool firstCycle = false;
 //GEOMETRY DATA
 
 const float wheel_diameter = 0.63;
@@ -226,9 +228,9 @@ void messageCb(const geometry_msgs::Twist& msg){
   auxiliar = msg.linear.x;
   double z = msg.angular.z;
   new_cmd_vel_timer = millis();
-  if(abs(z)> 0.05){
+  /*if(abs(z)> 0.05){
     z = (z/abs(z))*0.05;
-  }
+  }*/
 
   if( is_stuck ){
     rps_req_RF = 0;
@@ -853,7 +855,7 @@ void MoveArm(int ticks){
 
 }  
 void tool(){
-  if(true){
+  if(!firstCycle){
     if (first_req_tool == true){
       first_req_tool = false;
       motorGo(1, ARM_LEFT, 254);
@@ -862,12 +864,12 @@ void tool(){
     }
     else if (tool_is_ok == true && change_tool_status == true){
       delay(25);
-      //armDiagnostics.data = " Me quedo aca";
-      //armDiagnostics_pub.publish ( &armDiagnostics );
       if (!digitalRead(c_ToolEndStopInterrupt)){
-        motorGo(1, ARM_LEFT, 0);
+        //motorGo(1, ARM_LEFT, 0);
         first_req_tool = true;
-        startTool = false;
+        //startTool = false;
+        firstCycle = true;
+        second_req_tool = true;
       }
       if (digitalRead(c_ToolEndStopInterrupt)){
         motorGo(1, ARM_LEFT, 254);
@@ -875,7 +877,31 @@ void tool(){
         startTool = true;
       }
     }
-    
+  }
+  else if(firstCycle){
+    if (second_req_tool == true){
+      second_req_tool = false;
+      motorGo(1, ARM_LEFT, 254);
+      change_tool_status = false;
+    }
+    else if (tool_is_ok == true && change_tool_status == true){
+      delay(25);
+      if (!digitalRead(c_ToolEndStopInterrupt)){
+        motorGo(1, ARM_LEFT, 0);
+        second_req_tool = true;
+        startTool = false;
+        firstCycle = false;
+        //second_req_tool = true;
+      }
+      if (digitalRead(c_ToolEndStopInterrupt)){
+        motorGo(1, ARM_LEFT, 254);
+        second_req_tool = false;
+        startTool = true;
+      }
+    }
+    /*motorGo(1, ARM_LEFT, 0);
+    startTool = false;
+    firstCycle = false;*/
   }
   else{
     motorGo(1, 0, 0);

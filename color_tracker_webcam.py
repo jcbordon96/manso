@@ -13,13 +13,16 @@ import math
 import os
 from datetime import datetime
 import csv
+import time as ptime
 
 class WeedTracker:
     pose = Point()
     point = PointStamped()
     last_pose = Point()
     point.header.frame_id = "odom"
-    
+    distance_lowerCam_tool = 0.85
+    px_to_cm = 1200
+    pointY_odom = 0
     global objects
     objects = -1
     close = False
@@ -30,6 +33,11 @@ class WeedTracker:
     take_pic = True
     distance = 0
     wait_gnss = False
+    fileTime=int(ptime.time())
+    os.mkdir('/home/appelie/manso_ws/src/v1/scripts/manso/resources/videos/tracker/{}'.format(fileTime))
+    out_debug = cv2.VideoWriter('/home/appelie/manso_ws/src/v1/scripts/manso/resources/videos/tracker/{}/debug.avi'.format(fileTime), cv2.VideoWriter_fourcc(*'MJPG'),10, (640,480))
+    out_raw = cv2.VideoWriter('/home/appelie/manso_ws/src/v1/scripts/manso/resources/videos/tracker/{}/raw.avi'.format(fileTime), cv2.VideoWriter_fourcc(*'MJPG'),10, (640,480))
+
     def __init__(self):
         retry = True
         rospy.Subscriber('odom', Odometry, self.odom_callback)
@@ -38,29 +46,30 @@ class WeedTracker:
 
         self.pub_points = rospy.Publisher("weed_points", PointStamped, queue_size=10)
         rospy.loginfo("Iniciado")
-        tracker = color_tracker.ColorTracker(max_nb_of_objects=15, max_nb_of_points=20, debug=True)
+        tracker = color_tracker.ColorTracker(max_nb_of_objects=15, max_nb_of_points=5000, debug=True)
         tracker.set_tracking_callback(self.tracker_callback)
+        
         while True:
             if retry:
-                # try:
+                try:
 
-                with color_tracker.WebCamera(video_src="/dev/TRACKER") as cam:
-                    # Define your custom Lower and Upper HSV values
-                    retry = False
-                    tracker.track(cam, [30,20,20], [90,255,255], max_skipped_frames=30, min_contour_area=500) 
-                # except Exception as e:
-                #     print("Algo salio mal, error: ", e)
-                #     print(self.close)
-                #     if self.close == False:
-                #         retry = True
-                #     else:
-                #         break
+                    with color_tracker.WebCamera(video_src="/dev/TRACKER") as cam:
+                        # Define your custom Lower and Upper HSV values
+                        retry = False
+                        #tracker.track(cam, [30,20,20], [90,255,255], max_skipped_frames=30, min_contour_area=500) #green
+                        tracker.track(cam, [136,87,111], [180,255,255], max_skipped_frames=30, min_contour_area=500) #red
+                except Exception as e:
+                    print("Algo salio mal, error: ", e)
+                    print(self.close)
+                    if self.close == False:
+                        retry = True
+                    else:
+                        break
 
     def odom_callback(self, msg):
         (r, p, y) = tf.transformations.euler_from_quaternion([msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w])
-
-        self.point.point.x = msg.pose.pose.position.x + 0.88 * math.cos(y)
-        self.point.point.y = msg.pose.pose.position.y + 0.88 * math.sin(y)
+        self.point.point.x = msg.pose.pose.position.x + 1.2 * math.cos(y) - (self.pointY_odom / self.px_to_cm) * math.cos(y) 
+        self.point.point.y = msg.pose.pose.position.y + 1.2 * math.sin(y) - (self.pointY_odom / self.px_to_cm) * math.sin(y)
         self.pose.x = msg.pose.pose.position.x 
         self.pose.y = msg.pose.pose.position.y 
     
@@ -115,6 +124,8 @@ class WeedTracker:
             wr.writerow([logdate, loghour, lat, lon, state])
 
     def tracker_callback(self, t: color_tracker.ColorTracker):
+        self.out_debug.write(t.debug_frame)
+        self.out_raw.write(t.frame)
         if self.wait_gnss:
             global objects
             if len(t.tracked_objects) > 0:
@@ -143,23 +154,29 @@ class WeedTracker:
         for i in range(len(t.tracked_objects)):
             
             if(objects < t.tracked_objects[i]._id):
-                print("Punto Nuevo")
-                objects = t.tracked_objects[i]._id
+                #print("Punto Nuevo")
+                #objects = t.tracked_objects[i]._id
                 # pointX = (t.tracked_objects[i].last_point[0]*640) /175
                 pointX = t.tracked_objects[i].last_point[0]
+                pointY = t.tracked_objects[i].last_point[1]
+                self.pointY_odom = pointY
                 # print(pointX)
                 # print("pixel:" + str (t.tracked_objects[i].last_point[0]))
-                if (pointX > 150 and pointX < 490):
-                    if(pointX > 150 and pointX < 263 ):
-                        print("1")
-                        self.point.point.z = 1
-                    elif(pointX > 263 and pointX < 375 ):
-                        print("2")
-                        self.point.point.z = 2
-                    elif(pointX > 375 and pointX < 490 ):
-                        print("3")
-                        self.point.point.z = 3
-                    self.pub_points.publish(self.point)
+                if (pointY < 240):
+                    print("Punto Nuevo")
+                    print(pointY)
+                    objects = t.tracked_objects[i]._id    
+                    if (pointX > 150 and pointX < 490):
+                        if(pointX > 150 and pointX < 263 ):
+                            print("1")
+                            self.point.point.z = 1
+                        elif(pointX > 263 and pointX < 375 ):
+                            print("2")
+                            self.point.point.z = 2
+                        elif(pointX > 375 and pointX < 490 ):
+                            print("3")
+                            self.point.point.z = 3
+                        self.pub_points.publish(self.point)
                 # print(self.point)
                 
             #cv2.circle(t.debug_frame, t.tracked_objects[i].last_point, 5, [255,255,255], 3)  

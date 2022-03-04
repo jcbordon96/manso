@@ -10,21 +10,32 @@ from geometry_msgs.msg import Twist
 from std_msgs.msg import Int16
 import os
 import math
+import time as ptime
 
 class Follower:
     msg = Twist()
-    max_angular = 0.05
-    max_linear = 0.25
-    min_angular = 0.01
-    min_linear = 0.1
+    #max_angular = 0.08
+    #max_linear = 0.25
+    #min_angular = 0.05
+    #min_linear = 0.12
+    max_angular = 0.15
+    max_linear = 0.45
+    min_angular = 0.15
+    min_linear = 0.2
     request = True
     vois = Int16()
+    fileTime=int(ptime.time())
+    os.mkdir('/home/appelie/manso_ws/src/v1/scripts/manso/resources/videos/follower/{}'.format(fileTime))
+    out_debug = cv2.VideoWriter('/home/appelie/manso_ws/src/v1/scripts/manso/resources/videos/follower/{}/debug.avi'.format(fileTime), cv2.VideoWriter_fourcc(*'MJPG'),10, (640,480))
+    out_raw = cv2.VideoWriter('/home/appelie/manso_ws/src/v1/scripts/manso/resources/videos/follower/{}/raw.avi'.format(fileTime), cv2.VideoWriter_fourcc(*'MJPG'),10, (640,480))
+
     def __init__(self):
-        os.system('v4l2-ctl -d /dev/video2 -c exposure_auto=1')
-        os.system('v4l2-ctl -d /dev/video2 -c white_balance_temperature_auto=0')
-        os.system('v4l2-ctl -d /dev/video2 -c white_balance_temperature=4500')
-        os.system('v4l2-ctl -d /dev/video2 -c focus_auto=0')
-        os.system('v4l2-ctl -d /dev/video2 -c focus_absolute=12')
+        os.system('v4l2-ctl -d /dev/FOLLOWER -c exposure_auto=1')
+        os.system('v4l2-ctl -d /dev/FOLLOWER -c exposure_absolute=1')
+        os.system('v4l2-ctl -d /dev/FOLLOWER -c white_balance_temperature_auto=0')
+        os.system('v4l2-ctl -d /dev/FOLLOWER -c white_balance_temperature=5000')
+        os.system('v4l2-ctl -d /dev/FOLLOWER -c focus_auto=0')
+        os.system('v4l2-ctl -d /dev/FOLLOWER -c focus_absolute=12')
         self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
         rospy.Subscriber('follower_request', Bool, self.follower_request_callback)
         
@@ -42,12 +53,15 @@ class Follower:
         exposureValue = 1
         flagChangeExposure = False
         flagChangeExposureDecrease = False
+        angle = 0
+        
         while closent :
             try:
                 framesEmpty = framesEmpty + 1
                 # Reading the video from the
                 # webcam in image frames
                 _, imageFrame = webcam.read()
+                self.out_raw.write(imageFrame)
             
                 # Convert the imageFrame in 
                 # BGR(RGB color space) to 
@@ -83,21 +97,24 @@ class Follower:
                 
                 for pic, contour in enumerate(contours):
                     area = cv2.contourArea(contour)
-                    if(area > 15000):
+                    x, y, w, h = cv2.boundingRect(contour)
+                    #print(area)
+                    if(area > 10000):
+                        
                         flagStop = False
                         if(flagChangeExposure):
-                            os.system('v4l2-ctl -d /dev/video2 -c exposure_absolute={}'.format(exposureValue+5))
+                            if (flagChangeExposureDecrease):
+                                os.system('v4l2-ctl -d /dev/FOLLOWER -c exposure_absolute={}'.format(exposureValue))
                             flagChangeExposure = False
                         framesEmpty = 0
                         cv2.drawContours(imageFrame, contour, -1, (255,0,255), 1)
-                        x, y, w, h = cv2.boundingRect(contour)
                         M = cv2.moments(contour)
                         cx = int(M['m10']/M['m00'])
                         cy = int(M['m01']/M['m00'])
                         cv2.circle(imageFrame, (cx,cy), 10, (255,255,255), cv2.FILLED)
             
 
-                        if(x > 225 and x+w < 415):
+                        if(x > 270 and x+w < 370):
                             cv2.rectangle(imageFrame, (x,y), (x+w, y+h), (0,255,0), 3)
                         else:
                             cv2.rectangle(imageFrame, (x,y), (x+w, y+h), (0,0,255), 3)
@@ -118,45 +135,48 @@ class Follower:
                         # cv2.imshow("edges",edges)
                         lines = cv2.HoughLinesP(edges,1,np.pi/180,40,minLineLength=30,maxLineGap=30)
                         i = 0
-                        for x1,y1,x2,y2 in lines[0]:
-                            i+=1
-                            cv2.line(imageFrame,(x1,y1),(x2,y2),(0,255,0),2)
-                            dx = x1 - x2
-                            dy = y1 - y2 
-                            angle = math.atan((dx/dy))
-                            angle = round((angle/(2*math.pi))*360,2)
-                            # 3cv2.putText(imageFrame, "{}".format(angle), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA, False)
-                
+
+                        if( type(lines) == np.ndarray):
+                            for x1,y1,x2,y2 in lines[0]:
+                                i+=1
+                                dx = x1 - x2
+                                dy = y1 - y2 
+                                angle = math.atan((dx/dy))
+                                angle = round((angle/(2*math.pi))*360,2)
+                                cv2.putText(imageFrame, "{}".format(angle), (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA, False)
+                    
                         self.pubCorrection(cx,angle)
 
                         #print(area)
                         #print(len(approx))
                         # print(x)
-                
+                if framesEmpty % 5 == 0 and flagChangeExposure:
+                    if(flagChangeExposure):
+                        if(exposureValue < 10 and not flagChangeExposureDecrease):
+                            exposureValue += 1
+                        else:
+                            exposureValue -= 1
+                        if(exposureValue == 10):
+                            flagChangeExposureDecrease = True
+                        elif (exposureValue == 1):
+                            flagChangeExposureDecrease = False
+                        os.system('v4l2-ctl -d /dev/FOLLOWER -c exposure_absolute={}'.format(exposureValue))
                 if framesEmpty >= 40:
-                    self.pubCorrection(-1)
+                    self.pubCorrection(-1,angle)
                     flagStop = True
                     flagChangeExposure = True
+                    framesEmpty = 1
                 if(flagStop):
-                    self.pubCorrection(-1)
-                if(flagChangeExposure):
-                    if(exposureValue < 25 and not flagChangeExposureDecrease):
-                        exposureValue += 1
-                    else:
-                        exposureValue -= 1
-                    if(exposureValue == 25):
-                        flagChangeExposureDecrease = True
-                    elif (exposureValue == 1):
-                        flagChangeExposureDecrease = False
-                    print(exposureValue)
-                    os.system('v4l2-ctl -d /dev/FOLLOWER -c exposure_absolute={}'.format(exposureValue))
+                    self.pubCorrection(-1, angle)
+                
                 # Program Termination
-                cv2.rectangle(imageFrame, (225,0), (225, 480), (255,0,255), 3)
-                cv2.rectangle(imageFrame, (415,0), (415, 480), (255,0,255), 3)
+                cv2.rectangle(imageFrame, (270,0), (270, 480), (255,0,255), 3)
+                cv2.rectangle(imageFrame, (370,0), (370, 480), (255,0,255), 3)
                 cv2.rectangle(imageFrame, (10,10), (200, 50), (0,0,0), -1)
                 cv2.putText(imageFrame, "Linear: {}".format(self.msg.linear.x), (10,40), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255), 3,3)
                 cv2.rectangle(imageFrame, (350,10), (630, 50), (0,0,0), -1)
                 cv2.putText(imageFrame, "Angular: {}".format(self.msg.angular.z), (350,40), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255), 3,3)
+                self.out_debug.write(imageFrame)
                 cv2.imshow("Follower", imageFrame)
                 if cv2.waitKey(10) & 0xFF == ord('q'):
                     closent = False
@@ -182,19 +202,29 @@ class Follower:
                     self.msg.angular.z = 0.0
                     self.vois.data = -1
                     self.voice_pub.publish(self.vois)
-                elif value < 220:
-                    self.msg.linear.x = self.min_linear + (self.max_linear - self.min_linear) * (value/220)
-                    self.msg.angular.z = self.max_angular - self.max_angular * (value/220)
+                elif value < 270 and angle >= 0 :
+                    self.msg.linear.x = self.min_linear + (self.max_linear - self.min_linear) * (value/270)
+                    self.msg.angular.z = max(self.min_angular,(self.max_angular - self.max_angular * (value/270)))
                     self.vois.data = 1
                     self.voice_pub.publish(self.vois)
-                elif value > 420:
-                    self.msg.linear.x = self.max_linear - self.min_linear - (self.max_linear - self.min_linear) * ((value - 420)/220)
-                    self.msg.angular.z = - self.max_angular * ((value - 420)/220)
+                elif value < 270 and angle < 0 :
+                    self.msg.linear.x = self.min_linear 
+                    self.msg.angular.z = 0
+                    self.vois.data = 1
+                    self.voice_pub.publish(self.vois)
+                elif value > 370 and angle <= 0:
+                    self.msg.linear.x = self.max_linear - (self.max_linear - self.min_linear) * ((value - 370)/270)
+                    self.msg.angular.z = min(-self.min_angular, (-self.max_angular * ((value - 370)/270)))
+                    self.vois.data = 2
+                    self.voice_pub.publish(self.vois)
+                elif value > 370 and angle > 0:
+                    self.msg.linear.x = self.min_linear
+                    self.msg.angular.z = 0
                     self.vois.data = 2
                     self.voice_pub.publish(self.vois)
                 else: 
-                    self.msg.linear.x = self.max_linear
-                    self.msg.angular.z = (angle / 15.0) * self.max_angular
+                    self.msg.linear.x = self.max_linear - (self.max_linear - self.min_linear) * (min(abs(angle),7.0)/7.0)
+                    self.msg.angular.z = (((angle/abs(angle))*(min(3.0,abs(angle)))) / 3.0) * self.max_angular
                     self.vois.data = 0
                     self.voice_pub.publish(self.vois)
                         
