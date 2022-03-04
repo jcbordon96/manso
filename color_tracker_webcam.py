@@ -6,7 +6,8 @@ import cv2
 import color_tracker
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PointStamped, Point
-from sensor_msgs.msg import NavSatFix
+from sensor_msgs.msg import NavSatFix, Image
+from cv_bridge import CvBridge
 from std_msgs.msg import String
 import tf
 import math
@@ -45,6 +46,9 @@ class WeedTracker:
         rospy.Subscriber('gnss_time', String, self.gnss_time_callback)
 
         self.pub_points = rospy.Publisher("weed_points", PointStamped, queue_size=10)
+        self.pub_image_raw = rospy.Publisher("camera/tracker/raw", Image, queue_size=10)
+        self.pub_image_debug = rospy.Publisher("camera/tracker/debug", Image, queue_size=10)
+        self.br = CvBridge()
         rospy.loginfo("Iniciado")
         tracker = color_tracker.ColorTracker(max_nb_of_objects=15, max_nb_of_points=5000, debug=True)
         tracker.set_tracking_callback(self.tracker_callback)
@@ -182,12 +186,16 @@ class WeedTracker:
             #cv2.circle(t.debug_frame, t.tracked_objects[i].last_point, 5, [255,255,255], 3)  
         
         res = cv2.resize(t.debug_frame, (640,480))
+        raw = cv2.resize(t.frame, (640,480))
         cv2.rectangle(res, (150,0), (150,480),[255,0,255], 3)
         cv2.rectangle(res, (490,0), (490,480),[255,0,255], 3)
         cv2.rectangle(res, (263,0), (263,480),[0,255,0], 3)
         cv2.rectangle(res, (0,240), (640,240),[0,255,0], 3)
         cv2.rectangle(res, (375,0), (375,480),[0,255,0], 3)
         cv2.imshow("debug", res)
+        self.pub_image_debug.publish(self.br.cv2_to_imgmsg(self.res))
+        self.pub_image_raw.publish(self.br.cv2_to_imgmsg(self.raw))
+
         # cv2.waitKey(1)
         if cv2.waitKey(10) & 0xFF == ord('q'):
             cv2.destroyAllWindows()
