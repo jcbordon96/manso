@@ -223,7 +223,7 @@ class Follower:
                     self.vois.data = 2
                     self.voice_pub.publish(self.vois)
                 else: 
-                    self.msg.linear.x = self.max_linear - (self.max_linear - self.min_linear) * (min(abs(angle),7.0)/7.0)
+                    self.msg.linear.x = self.min_linear #self.max_linear - (self.max_linear - self.min_linear) * (min(abs(angle),7.0)/7.0)
                     self.msg.angular.z = (((angle/abs(angle))*(min(3.0,abs(angle)))) / 3.0) * self.max_angular
                     self.vois.data = 0
                     self.voice_pub.publish(self.vois)
