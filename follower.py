@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Python code for Multiple Color Detection
+from curses import raw
 from fileinput import close
 
 import rospy
@@ -8,6 +9,8 @@ import numpy as np
 import cv2
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Int16
+from cv_bridge import CvBridge
+from sensor_msgs.msg import Image
 import os
 import math
 import time as ptime
@@ -38,7 +41,9 @@ class Follower:
         os.system('v4l2-ctl -d /dev/FOLLOWER -c focus_absolute=12')
         self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
         rospy.Subscriber('follower_request', Bool, self.follower_request_callback)
-        
+        self.pub_image_raw = rospy.Publisher("camera/follower/raw", Image, queue_size=10)
+        self.pub_image_debug = rospy.Publisher("camera/follower/debug", Image, queue_size=10)
+        self.br = CvBridge()
 
         self.voice_pub = rospy.Publisher('voice_cmd', Int16, queue_size=10)
         flagStop = False
@@ -62,6 +67,7 @@ class Follower:
                 # webcam in image frames
                 _, imageFrame = webcam.read()
                 self.out_raw.write(imageFrame)
+                raw = imageFrame
             
                 # Convert the imageFrame in 
                 # BGR(RGB color space) to 
@@ -178,6 +184,9 @@ class Follower:
                 cv2.putText(imageFrame, "Angular: {}".format(self.msg.angular.z), (350,40), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255), 3,3)
                 self.out_debug.write(imageFrame)
                 cv2.imshow("Follower", imageFrame)
+                debug = imageFrame
+                self.pub_image_debug.publish(self.br.cv2_to_imgmsg(debug))
+                self.pub_image_raw.publish(self.br.cv2_to_imgmsg(raw))
                 if cv2.waitKey(10) & 0xFF == ord('q'):
                     closent = False
                     cap.release()

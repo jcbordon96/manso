@@ -193,8 +193,8 @@ class WeedTracker:
         cv2.rectangle(res, (0,240), (640,240),[0,255,0], 3)
         cv2.rectangle(res, (375,0), (375,480),[0,255,0], 3)
         cv2.imshow("debug", res)
-        self.pub_image_debug.publish(self.br.cv2_to_imgmsg(self.res))
-        self.pub_image_raw.publish(self.br.cv2_to_imgmsg(self.raw))
+        self.pub_image_debug.publish(self.br.cv2_to_imgmsg(res))
+        self.pub_image_raw.publish(self.br.cv2_to_imgmsg(raw))
 
         # cv2.waitKey(1)
         if cv2.waitKey(10) & 0xFF == ord('q'):
