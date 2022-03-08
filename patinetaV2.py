@@ -54,6 +54,7 @@ class patineta:
         self.okZoneGoal = False
         self.precisionArm = 30
         self.id = 0
+        self.tool_status = True
 
         #self.pub = rospy.Publisher("time", Float32, queue_size=10)
         self.pubArduino = rospy.Publisher("cvTool_cmd", Bool, queue_size=10)
@@ -61,6 +62,7 @@ class patineta:
         rospy.Subscriber('odom', Odometry, self.pose_callback)
         rospy.Subscriber('armPose', Float32, self.armPose_callback)
         rospy.Subscriber('weed_points', PointStamped, self.points_callback)
+        rospy.Subscriber('tool_status', Bool, self.tool_status_callback)
 
         rospy.loginfo("Run polar arm has been started")
         rospy.loginfo(self.elements)
@@ -90,6 +92,9 @@ class patineta:
                         #if (self.execute == False):
                         else:
                             # self.goal = self.element
+                            while not self.tool_status:
+                                time.sleep(0.1)
+                            self.tool_status = False
                             print(self.zone)
                             self.pubZoneGoal.publish(int(self.zone))
 
@@ -101,6 +106,7 @@ class patineta:
                         print("El punto quedo atras (THETA), ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                 #-------------------------- execute function --------------------------
                 else:
+                    
                     self.DistanceToLow = sqrt((self.point.x - self.pose.x) **2 + (self.point.y - self.pose.y) **2)
                     self.DistanceToZone = self.zoneGoal - self.armPose
                     print("point: {}, pose: {}, distance: {}".format(self.point.x, self.pose.x, self.DistanceToLow))
@@ -128,6 +134,7 @@ class patineta:
                         
 
                     if (self.okZoneGoal == True and self.ok_goal == True and self.stop_flag == False):
+                        
                         print("Voy, ID: ", self.current_id)
                         self.time = time.perf_counter()
                         self.CommandArduino = True
@@ -157,6 +164,8 @@ class patineta:
 
                 #else:
                 #----------------------------------------------------------------------------
+    def tool_status_callback(self, msg):
+        self.tool_status = msg.data
 
     def pose_callback(self, msg):
         self.pose.x = msg.pose.pose.position.x

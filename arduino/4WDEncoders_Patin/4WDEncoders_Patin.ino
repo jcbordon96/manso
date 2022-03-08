@@ -302,6 +302,7 @@ std_msgs::Bool endStopRight;
 std_msgs::Bool endStopLeft;
 std_msgs::Bool endStopTool;
 std_msgs::Bool emergency_stop;
+std_msgs::Bool tool_status;
 std_msgs::Float32 distancetozone;
 std_msgs::String armDiagnostics;
 std_msgs::Float32 armPose;
@@ -329,6 +330,7 @@ ros::Publisher endstopLeft_pub("EndStopLeft", &endStopLeft);
 ros::Publisher endstopTool_pub("EndStopTool", &endStopLeft);
 ros::Publisher stuck_pub("wheel_stuck", &stuck);
 ros::Publisher encoder_pub("wheel_encoders", &encoder);
+ros::Publisher tool_pub("tool_status", &tool_status);
 // ros::Publisher velo_pub("velo", &Velo);
 
 //V2
@@ -350,6 +352,7 @@ void setup(){
   nh.advertise(distanceToZone_pub);
   nh.advertise(armDiagnostics_pub);
   nh.advertise(armPose_pub);
+  nh.advertise(tool_pub);
   nh.subscribe(sub_manual);
   nh.subscribe(sub_cvArm);
   nh.subscribe(sub_cvTool);
@@ -891,6 +894,8 @@ void tool(){
         second_req_tool = true;
         startTool = false;
         firstCycle = false;
+        tool_status.data = true;
+        tool_pub.publish(&tool_status);
         //second_req_tool = true;
       }
       if (digitalRead(c_ToolEndStopInterrupt)){
@@ -905,6 +910,8 @@ void tool(){
   }
   else{
     motorGo(1, 0, 0);
+    tool_status.data = true;
+    tool_pub.publish(&tool_status);
   }
   
   // while (tool_is_ok == true){

@@ -8,7 +8,7 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PointStamped, Point
 from sensor_msgs.msg import NavSatFix, Image
 from cv_bridge import CvBridge
-from std_msgs.msg import String
+from std_msgs.msg import String, Bool
 import tf
 import math
 import os
@@ -34,16 +34,22 @@ class WeedTracker:
     take_pic = True
     distance = 0
     wait_gnss = False
+    save_video = False
     fileTime=int(ptime.time())
     os.mkdir('/home/appelie/manso_ws/src/v1/scripts/manso/resources/videos/tracker/{}'.format(fileTime))
     out_debug = cv2.VideoWriter('/home/appelie/manso_ws/src/v1/scripts/manso/resources/videos/tracker/{}/debug.avi'.format(fileTime), cv2.VideoWriter_fourcc(*'MJPG'),10, (640,480))
     out_raw = cv2.VideoWriter('/home/appelie/manso_ws/src/v1/scripts/manso/resources/videos/tracker/{}/raw.avi'.format(fileTime), cv2.VideoWriter_fourcc(*'MJPG'),10, (640,480))
-
+    date = datetime.now()
+    filedate = date.strftime("%Y%m%d_%H%M%S")
+    os.mkdir('/home/appelie/manso_ws/src/v1/scripts/manso/resources/images/{}'.format(filedate))
+    os.mkdir('/home/appelie/manso_ws/src/v1/scripts/manso/resources/images/{}/raw'.format(filedate))
+    os.mkdir('/home/appelie/manso_ws/src/v1/scripts/manso/resources/images/{}/debug'.format(filedate))
     def __init__(self):
         retry = True
         rospy.Subscriber('odom', Odometry, self.odom_callback)
         rospy.Subscriber('gnss', NavSatFix, self.gnss_callback)
         rospy.Subscriber('gnss_time', String, self.gnss_time_callback)
+        rospy.Subscriber('save_video_tracker', Bool, self.save_video_tracker_callback)
 
         self.pub_points = rospy.Publisher("weed_points", PointStamped, queue_size=10)
         self.pub_image_raw = rospy.Publisher("camera/tracker/raw", Image, queue_size=10)
@@ -80,6 +86,9 @@ class WeedTracker:
     def gnss_callback(self, msg):
         self.gnss = msg
         self.wait_gnss = True
+    
+    def save_video_tracker_callback(self, msg):
+        self.save_video = msg.data
 
     def gnss_time_callback(self, msg):
         self.time = msg.data
@@ -128,31 +137,32 @@ class WeedTracker:
             wr.writerow([logdate, loghour, lat, lon, state])
 
     def tracker_callback(self, t: color_tracker.ColorTracker):
-        self.out_debug.write(t.debug_frame)
-        self.out_raw.write(t.frame)
+        if self.save_video:
+            self.out_debug.write(t.debug_frame)
+            self.out_raw.write(t.frame)
         if self.wait_gnss:
             global objects
-            if len(t.tracked_objects) > 0:
-                self.weed = "Y"
-            else:
-                self.weed = "N"
+            # if len(t.tracked_objects) > 0:
+            #     self.weed = "Y"
+            # else:
+            #     self.weed = "N"
             # print("There is a plant :", self.weed)
-            self.distance = math.sqrt((self.pose.x - self.last_pose.x) **2 + (self.pose.y - self.last_pose.y) **2)
-            # print(self.distance)
-            if self.distance > self.distance_to_take_pic:
-                self.take_pic = True
-                print("Voy a sacar una foto")
-            if self.take_pic == True:
-                string_clear = "/home/appelie/manso_ws/src/v1/scripts/manso/resources/images/clear/" + self.time + "_" + str(self.gnss.latitude) + "_" + str(self.gnss.longitude) + "_C_" + self.weed + ".png"
-                print(string_clear)
-                print(cv2.imwrite(string_clear, t.frame))
-                string_debug = "/home/appelie/manso_ws/src/v1/scripts/manso/resources/images/debug/" + self.time + "_" + str(self.gnss.latitude) + "_" + str(self.gnss.longitude) + "_D_" + self.weed + ".png"
-                print(string_debug)
-                print(cv2.imwrite(string_debug, t.debug_frame))
-                self.logwriter(self.gnss.latitude, self.gnss.longitude, self.weed)
-                self.last_pose.x = self.pose.x
-                self.last_pose.y = self.pose.y
-                self.take_pic = False
+            # self.distance = math.sqrt((self.pose.x - self.last_pose.x) **2 + (self.pose.y - self.last_pose.y) **2)
+            # # print(self.distance)
+            # if self.distance > self.distance_to_take_pic:
+            #     self.take_pic = True
+            #     print("Voy a sacar una foto")
+            # if self.take_pic == True:
+            #     string_clear = "/home/appelie/manso_ws/src/v1/scripts/manso/resources/images/clear/" + self.time + "_" + str(self.gnss.latitude) + "_" + str(self.gnss.longitude) + "_C_" + self.weed + ".png"
+            #     print(string_clear)
+            #     print(cv2.imwrite(string_clear, t.frame))
+            #     string_debug = "/home/appelie/manso_ws/src/v1/scripts/manso/resources/images/debug/" + self.time + "_" + str(self.gnss.latitude) + "_" + str(self.gnss.longitude) + "_D_" + self.weed + ".png"
+            #     print(string_debug)
+            #     print(cv2.imwrite(string_debug, t.debug_frame))
+            #     self.logwriter(self.gnss.latitude, self.gnss.longitude, self.weed)
+            #     self.last_pose.x = self.pose.x
+            #     self.last_pose.y = self.pose.y
+            #     self.take_pic = False
         
 
         for i in range(len(t.tracked_objects)):
@@ -166,10 +176,15 @@ class WeedTracker:
                 self.pointY_odom = pointY
                 # print(pointX)
                 # print("pixel:" + str (t.tracked_objects[i].last_point[0]))
-                if (pointY < 240):
+                if (pointY >= 240):
                     print("Punto Nuevo")
                     print(pointY)
-                    objects = t.tracked_objects[i]._id    
+                    objects = t.tracked_objects[i]._id
+                    string_raw = '/home/appelie/manso_ws/src/v1/scripts/manso/resources/images/{}/raw/'.format(self.filedate) + self.time + "_" + str(objects)+"_r" ".png"
+                    string_debug = '/home/appelie/manso_ws/src/v1/scripts/manso/resources/images/{}/debug/'.format(self.filedate) + self.time + "_" + str(objects)+"_d" ".png"
+                    cv2.imwrite(string_raw, t.frame)
+                    cv2.imwrite(string_debug, t.debug_frame)
+
                     if (pointX > 150 and pointX < 490):
                         if(pointX > 150 and pointX < 263 ):
                             print("1")
