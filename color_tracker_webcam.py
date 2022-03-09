@@ -101,7 +101,7 @@ class WeedTracker:
         nowlogdate = datetime.now()
         logdate = nowlogdate.strftime("%Y-%m-%d")
         loghour = nowlogdate.strftime("%H:%M:%S")
-        datename = nowlogdate.strftime("%Y%m%d")
+        datename = nowlogdate.strftime("%Y%m%dH:M:S")
         stringdatelog = "/home/appelie/manso_ws/src/v1/scripts/manso/resources/logs/maps/diario/"+datename+".csv"
         stringdatelogbackup = "/home/appelie/manso_ws/src/v1/scripts/manso/resources/logs/maps/backup/"+datename+".csv"
 
