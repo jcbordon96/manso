@@ -182,6 +182,7 @@ class WeedTracker:
                     objects = t.tracked_objects[i]._id
                     string_raw = '/home/appelie/manso_ws/src/v1/scripts/manso/resources/images/{}/raw/'.format(self.filedate) + self.time + "_" + str(objects)+"_r" ".png"
                     string_debug = '/home/appelie/manso_ws/src/v1/scripts/manso/resources/images/{}/debug/'.format(self.filedate) + self.time + "_" + str(objects)+"_d" ".png"
+                    self.logwriter(self.gnss.latitude, self.gnss.longitude, "Y")
                     cv2.imwrite(string_raw, t.frame)
                     cv2.imwrite(string_debug, t.debug_frame)
 
