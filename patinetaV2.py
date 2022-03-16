@@ -6,7 +6,7 @@ import rospy
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Int8, Float32, Bool, String
 from geometry_msgs.msg import Point, Pose2D, PointStamped
-from visualization_msgs.msg import Marker
+from visualization_msgs.msg import Marker, MarkerArray
 from sensor_msgs.msg import NavSatFix
 import csv
 import time 
@@ -70,10 +70,38 @@ class patineta:
         rospy.Subscriber('tool_status', Bool, self.tool_status_callback)
         rospy.Subscriber('gnss', NavSatFix, self.gnss_callback)
         rospy.Subscriber('gnss_time', String, self.gnss_time_callback)
-        
+        self.pub_success_markers = rospy.Publisher('markers_success', MarkerArray, queue_size=10)
+        self.pub_fail_markers = rospy.Publisher('markers_fail', MarkerArray, queue_size=10)
+        self.pub_wait_markers = rospy.Publisher('markers_wait', MarkerArray, queue_size=10)
 
         rospy.loginfo("Run polar arm has been started")
         rospy.loginfo(self.elements)
+        
+        self.wait_array = MarkerArray()
+        success_array = MarkerArray()
+        fail_array = MarkerArray()
+        marker_scale = 0.2
+        self.wait_marker = Marker()
+        success_marker = Marker()
+        fail_marker = Marker()
+        success_marker.header.frame_id = "odom"
+        success_marker.type = success_marker.SPHERE
+        success_marker.action = success_marker.ADD
+        success_marker.scale.x = marker_scale
+        success_marker.scale.y = marker_scale
+        success_marker.scale.z = marker_scale
+        success_marker.color.a = 1.0
+        success_marker.color.r = 0.0
+        success_marker.color.g = 1.0
+        success_marker.color.b = 0.0
+        success_marker.pose.orientation.w = 1.0
+        success_marker.pose.position.z = 0.0
+        self.wait_marker = success_marker
+        self.wait_marker.color.b = 1.0
+        self.wait_marker.color.g = 0.0
+        fail_marker = success_marker
+        fail_marker.color.g = 0.0
+        fail_marker.color.r = 1.0
 
         while not rospy.is_shutdown():
             #if (len(self.elements) > 0 or self.wait == True):
@@ -97,6 +125,10 @@ class patineta:
                             print(self.distance)
                             if (self.distance < self.distance_down):
                                 self.failed_elements.append(self.elements.pop(0))
+                                fail_marker = self.wait_array.markers.pop(0)
+                                fail_marker.color.b = 0.0
+                                fail_marker.color.r = 1.0
+                                fail_array.markers.append(fail_marker)
                                 self.logwriter(self.gnss.latitude, self.gnss.longitude, 0, self.current_id)
                                 print("El punto estaba demasiado cerca, ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                             #if (self.execute == False):
@@ -113,6 +145,10 @@ class patineta:
                                 print("El punto paso a ejecucion, ID:{}, zona: {}".format(self.current_id, self.zone)) 
                         else:
                             self.failed_elements.append(self.elements.pop(0))
+                            fail_marker = self.wait_array.markers.pop(0)
+                            fail_marker.color.b = 0.0
+                            fail_marker.color.r = 1.0
+                            fail_array.markers.append(fail_marker)
                             self.logwriter(self.gnss.latitude, self.gnss.longitude, 0, self.current_id)
                             print("El punto quedo atras (THETA), ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                     #-------------------------- execute function --------------------------
@@ -137,6 +173,10 @@ class patineta:
                             # print("goalZone: {}/ armPose: {} /distanceToZone: {}/ No se llego a la zona a tiempo".format(self.zoneGoal, self.armPose, self.distanceToZone))
                             if(len(self.elements) > 0):
                                 self.failed_elements.append(self.elements.pop(0))
+                                fail_marker = self.wait_array.markers.pop(0)
+                                fail_marker.color.b = 0.0
+                                fail_marker.color.r = 1.0
+                                fail_array.markers.append(fail_marker)
                                 self.logwriter(self.gnss.latitude, self.gnss.longitude, 0, self.current_id)
                             print("El brazo no llego a su posicion antes del objetivo, ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                             self.ok_goal = False
@@ -160,6 +200,10 @@ class patineta:
                                 self.CommandArduino = False
                             if(len(self.elements) > 0):
                                 self.ok_elements.append(self.elements.pop(0))
+                                success_marker = self.wait_array.markers.pop(0)
+                                success_marker.color.g = 1.0
+                                success_marker.color.b = 0.0
+                                success_array.markers.append(success_marker)
                                 self.logwriter(self.gnss.latitude, self.gnss.longitude, 1, self.current_id)
                             print("Listorta, ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                         
@@ -167,17 +211,24 @@ class patineta:
                             # print("goalZone: {}/ armPose: {} /distanceToZone: {}/ Nos pasamos segun angulo".format(self.zoneGoal, self.armPose, self.distanceToZone))
                             if(len(self.elements) > 0):
                                 self.failed_elements.append(self.elements.pop(0))
+                                fail_marker = self.wait_array.markers.pop(0)
+                                fail_marker.color.b = 0.0
+                                fail_marker.color.r = 1.0
+                                fail_array.markers.append(fail_marker)
                                 self.logwriter(self.gnss.latitude, self.gnss.longitude, 0, self.current_id)
                             print("Nos pasamos segun angulo, ID:{}, puntos restantes: {} ".format(self.current_id,len(self.elements)))
                             self.ok_goal = False
                             self.okZoneGoal = False
                             self.execute = False
                             self.wait = False
-                        if (len(self.ok_elements)+len(self.failed_elements)) > 0:
-                            self.success_rate = round(len(self.ok_elements)/(len(self.ok_elements)+len(self.failed_elements)),2)
-                        else:
-                            self.success_rate = 100
-                        self.pub_success_rate.publish(self.success_rate)
+                if (len(self.ok_elements)+len(self.failed_elements)) > 0:
+                    self.success_rate = round(len(self.ok_elements)/(len(self.ok_elements)+len(self.failed_elements)),2)
+                else:
+                    self.success_rate = 100
+                self.pub_success_rate.publish(self.success_rate)
+                self.pub_wait_markers.publish(self.wait_array)
+                self.pub_success_markers.publish(success_array)
+                self.pub_fail_markers.publish(fail_array)
                         
 
 
@@ -241,6 +292,9 @@ class patineta:
         self.armPose = msg.data 
     def points_callback(self, msg):
         self.elements.append([msg.point.x, msg.point.y, msg.point.z, self.id])
+        self.wait_marker.pose.position.x = msg.point.x
+        self.wait_marker.pose.position.y = msg.point.y
+        self.wait_array.markers.append(self.wait_marker)
         print("Nuevo punto con el ID: ", self.id)
         self.id += 1
         
