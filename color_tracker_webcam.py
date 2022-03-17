@@ -34,7 +34,7 @@ class WeedTracker:
     take_pic = True
     distance = 0
     wait_gnss = False
-    save_video = False
+    save_video = True
     fileTime=int(ptime.time())
     os.mkdir('/home/appelie/manso_ws/src/v1/scripts/manso/resources/videos/tracker/{}'.format(fileTime))
     out_debug = cv2.VideoWriter('/home/appelie/manso_ws/src/v1/scripts/manso/resources/videos/tracker/{}/debug.avi'.format(fileTime), cv2.VideoWriter_fourcc(*'MJPG'),10, (640,480))
@@ -44,7 +44,9 @@ class WeedTracker:
     os.mkdir('/home/appelie/manso_ws/src/v1/scripts/manso/resources/images/{}'.format(filedate))
     os.mkdir('/home/appelie/manso_ws/src/v1/scripts/manso/resources/images/{}/raw'.format(filedate))
     os.mkdir('/home/appelie/manso_ws/src/v1/scripts/manso/resources/images/{}/debug'.format(filedate))
+    
     def __init__(self):
+        
         retry = True
         rospy.Subscriber('odom', Odometry, self.odom_callback)
         rospy.Subscriber('gnss', NavSatFix, self.gnss_callback)
@@ -58,7 +60,9 @@ class WeedTracker:
         rospy.loginfo("Iniciado")
         tracker = color_tracker.ColorTracker(max_nb_of_objects=15, max_nb_of_points=5000, debug=True)
         tracker.set_tracking_callback(self.tracker_callback)
-        
+        self.exposureValue = 1
+        self.flagChangeExposure = False
+        self.flagChangeExposureDecrease = False
         while True:
             if retry:
                 try:
@@ -66,8 +70,8 @@ class WeedTracker:
                     with color_tracker.WebCamera(video_src="/dev/TRACKER") as cam:
                         # Define your custom Lower and Upper HSV values
                         retry = False
-                        #tracker.track(cam, [30,20,20], [90,255,255], max_skipped_frames=30, min_contour_area=500) #green
-                        tracker.track(cam, [136,87,111], [180,255,255], max_skipped_frames=30, min_contour_area=500) #red
+                        tracker.track(cam, [30,20,20], [90, 255, 255], max_skipped_frames=30, min_contour_area=150, horizontal_flip=True) #green
+                        #tracker.track(cam, [136,87,111], [180,255,255], max_skipped_frames=30, min_contour_area=500) #red
                 except Exception as e:
                     print("Algo salio mal, error: ", e)
                     print(self.close)
@@ -78,8 +82,8 @@ class WeedTracker:
 
     def odom_callback(self, msg):
         (r, p, y) = tf.transformations.euler_from_quaternion([msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w])
-        self.point.point.x = msg.pose.pose.position.x + 1.2 * math.cos(y) - (self.pointY_odom / self.px_to_cm) * math.cos(y) 
-        self.point.point.y = msg.pose.pose.position.y + 1.2 * math.sin(y) - (self.pointY_odom / self.px_to_cm) * math.sin(y)
+        self.point.point.x = msg.pose.pose.position.x + 1.25 * math.cos(y) - (self.pointY_odom / self.px_to_cm) * math.cos(y) 
+        self.point.point.y = msg.pose.pose.position.y + 1.25 * math.sin(y) - (self.pointY_odom / self.px_to_cm) * math.sin(y)
         self.pose.x = msg.pose.pose.position.x 
         self.pose.y = msg.pose.pose.position.y 
     
@@ -163,8 +167,7 @@ class WeedTracker:
             #     self.last_pose.x = self.pose.x
             #     self.last_pose.y = self.pose.y
             #     self.take_pic = False
-        
-
+       
         for i in range(len(t.tracked_objects)):
             
             if(objects < t.tracked_objects[i]._id):

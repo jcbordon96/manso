@@ -42,7 +42,7 @@ class patineta:
         self.pose = Pose2D()
         self.ok_goal = False
         self.stop_flag = False
-        self.distance_to_low = 0.05
+        self.distance_to_low = 0.1
         self.distance_down = 0.1
 
 
@@ -59,6 +59,7 @@ class patineta:
         self.tool_status = True
         self.success_rate = Float32()
         self.gnss = NavSatFix()
+        self.wait_gnss = True
 
         #self.pub = rospy.Publisher("time", Float32, queue_size=10)
         self.pubArduino = rospy.Publisher("cvTool_cmd", Bool, queue_size=10)
